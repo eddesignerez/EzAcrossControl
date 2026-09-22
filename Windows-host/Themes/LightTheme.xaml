@@ -1,0 +1,34 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Light Mode Values -->
+    <Color x:Key="BackgroundColor">#F6F8FC</Color>
+    <Color x:Key="SurfaceColor">#FFFFFF</Color>
+    <Color x:Key="SurfaceSoftColor">#EEF2F8</Color>
+    <Color x:Key="BorderColor">#E2E8F2</Color>
+    
+    <Color x:Key="TextPrimaryColor">#102347</Color>
+    <Color x:Key="TextSecondaryColor">#70809B</Color>
+    
+    <!-- Shared Brand Colors -->
+    <Color x:Key="BrandCoralColor">#FF604B</Color>
+    <Color x:Key="BrandCoralSoftColor">#FFF0ED</Color>
+    <Color x:Key="SuccessColor">#16835B</Color>
+
+    <!-- Semantic Brushes mapping for Light Theme -->
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
+    <SolidColorBrush x:Key="SurfaceSoftBrush" Color="{StaticResource SurfaceSoftColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+    
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
+    
+    <SolidColorBrush x:Key="BrandCoralBrush" Color="{StaticResource BrandCoralColor}" />
+    <SolidColorBrush x:Key="BrandCoralSoftBrush" Color="{StaticResource BrandCoralSoftColor}" />
+    
+    <SolidColorBrush x:Key="SuccessPrimaryBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="{StaticResource SurfaceSoftColor}" />
+    
+    <SolidColorBrush x:Key="InfoPrimaryBrush" Color="#0052CC" />
+    <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#DEEBFF" />
+</ResourceDictionary>

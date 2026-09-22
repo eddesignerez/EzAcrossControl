@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 
+      Limitation: Android's NetworkSecurityConfig does not support IP address ranges or wildcards. 
+      Since the Windows Host IP is dynamically entered by the user on the LAN, 
+      we must permit cleartext traffic globally at the base config level, 
+      but we moved it out of the Manifest to prepare for WSS/TLS migration in Phase 2.
+    -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

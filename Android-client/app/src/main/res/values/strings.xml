@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">EZ Across Control</string>
+    <string name="accessibility_service_description">EZ Across Control needs Accessibility Service to move the cursor and click on your behalf when receiving remote mouse events from Windows.</string>
+</resources>
