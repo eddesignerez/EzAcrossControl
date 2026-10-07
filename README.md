@@ -6,7 +6,7 @@ Controle de dispositivos Android a partir de um computador Windows, desenvolvido
 
 O aplicativo Windows usa WPF (.NET 8) para gerenciar a conexão, a captura de mouse e teclado e a troca de controle nas bordas da tela. O aplicativo Android fornece a interface de conexão e os serviços auxiliares. A comunicação do aplicativo entre Windows e Android usa WebSocket e mensagens JSON documentadas em [`Protocol/protocol.md`](Protocol/protocol.md), com foco em uso na rede local e baixa latência.
 
-O motor de controle V2 integra uma versão adaptada do scrcpy para entrada nativa via UHID. Há modos de transporte USB, Wi-Fi e automático no código atual. O patch e o procedimento de compilação ficam em [`patches/scrcpy`](patches/scrcpy) e [`Docs/v2/build-scrcpy-windows.md`](Docs/v2/build-scrcpy-windows.md). Binários gerados, SDKs locais e cópias de terceiros não fazem parte deste repositório.
+O motor de controle V2 integra uma versão adaptada do scrcpy para entrada nativa via UHID. Há modos de transporte USB, Wi-Fi e automático no código atual. O patch e o procedimento de compilação ficam em [`patches/scrcpy/EZ_ACROSS_PATCH.patch`](patches/scrcpy/EZ_ACROSS_PATCH.patch) e [`Docs/v2/build-scrcpy-windows.md`](Docs/v2/build-scrcpy-windows.md). Binários gerados, SDKs locais e cópias de terceiros não fazem parte deste repositório.
 
 ## Estado atual
 
@@ -42,3 +42,5 @@ cd .\Android-client
 ```
 
 Configurações locais, endereços de rede e credenciais devem permanecer fora do Git. A porta padrão do protocolo é `8765` e deve ser configurada pelos pontos centrais de configuração do host e do cliente.
+
+
