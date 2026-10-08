@@ -199,7 +199,7 @@ class ReturnEdgeSensor(private val context: Context) {
         }
         lastReturnTime = now
         dwell.cancel()
-        
+
         Log.i("ReturnEdgeSensor", "RETURN_TO_WINDOWS triggered from edge $currentEdge")
         onReturnDetected?.invoke()
     }

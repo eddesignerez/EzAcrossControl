@@ -9,7 +9,7 @@ namespace WindowsHost;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -23,6 +23,7 @@ public partial class App : Application
         Logger.Log("APP", "Windows Host Started");
 
         ThemeManager.Initialize();
+        Localization.Initialize();
     }
 
     private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

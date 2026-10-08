@@ -14,7 +14,7 @@ namespace WindowsHost
 
     public static class ConfigManager
     {
-        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+        private static readonly string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "config.json");
 
         public static AppSettings Load()
         {
@@ -42,6 +42,7 @@ namespace WindowsHost
             {
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(settings, options);
+                Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
                 File.WriteAllText(ConfigPath, json);
             }
             catch

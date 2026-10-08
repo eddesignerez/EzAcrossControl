@@ -1,5 +1,9 @@
 # Current Status
 
+## Distribution 1.1.0
+
+Installable Windows and signed Android packages, 11 languages and current validation evidence are documented in [Release 1.1.0](release-1.1.0.md).
+
 ## Phase 1.5: Configuration, Ports and Design System (Completed)
 - **Objective**: Consolidate the base by introducing a unified Design System (Light/Dark/System), centralizing network configurations, and standardizing the UI with the Inter font.
 - **Implemented**:

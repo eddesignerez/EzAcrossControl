@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using Application = System.Windows.Application;
 
 namespace WindowsHost
 {
@@ -14,7 +15,7 @@ namespace WindowsHost
 
     public static class ThemeManager
     {
-        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "theme.txt");
+        private static readonly string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "theme.txt");
 
         public static void Initialize()
         {
@@ -36,21 +37,14 @@ namespace WindowsHost
 
         public static void SaveThemePreference(AppTheme theme)
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
             File.WriteAllText(ConfigPath, theme.ToString());
             ApplyTheme(theme);
         }
 
         public static void ApplyTheme(AppTheme theme)
         {
-            bool isDark = false;
-            if (theme == AppTheme.System)
-            {
-                isDark = IsSystemDarkTheme();
-            }
-            else
-            {
-                isDark = theme == AppTheme.Dark;
-            }
+            bool isDark = IsDarkTheme(theme);
 
             var dict = new ResourceDictionary();
             dict.Source = new Uri(isDark ? "Themes/DarkTheme.xaml" : "Themes/LightTheme.xaml", UriKind.Relative);
@@ -58,6 +52,9 @@ namespace WindowsHost
             Application.Current.Resources.MergedDictionaries.Clear();
             Application.Current.Resources.MergedDictionaries.Add(dict);
         }
+
+        public static bool IsDarkTheme(AppTheme theme) =>
+            theme == AppTheme.Dark || (theme == AppTheme.System && IsSystemDarkTheme());
 
         private static bool IsSystemDarkTheme()
         {

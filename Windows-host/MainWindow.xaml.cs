@@ -13,18 +13,27 @@ using System.Collections.Generic;
 using System.Windows.Threading;
 using System.Threading.Channels;
 using System.Diagnostics;
+using System.ComponentModel;
+using System.IO;
 using WindowsHost.Input;
 using WindowsHost.V2.Edge;
 using WindowsHost.Protocol;
 using System.Windows.Input;
 using EZAcrossControl.Input;
 using WindowsHost.Engine;
+using System.Windows.Media;
+using WinForms = System.Windows.Forms;
+using Drawing = System.Drawing;
+using Brush = System.Windows.Media.Brush;
+using MessageBox = System.Windows.MessageBox;
 
 namespace WindowsHost
 {
     public partial class MainWindow : Window
     {
         private HttpListener? _listener;
+        private volatile bool _controlPaused;
+        private readonly SemaphoreSlim _readinessGate = new(1, 1);
         private CancellationTokenSource? _cts;
         private WebSocket? _currentSocket;
         
@@ -51,6 +60,7 @@ namespace WindowsHost
         private bool _androidHandshakeComplete;
         private AndroidDevice? _activeDevice;
         private string _engineTransport = "-";
+        private string? _lastPublishedSessionStatus;
         private IntPtr _windowToRestoreAfterNativeCapture;
         private NativeMethods.POINT? _pointerBeforeCapture;
         private ScreenEdge _edgeBeforeCapture;
@@ -66,23 +76,24 @@ namespace WindowsHost
         // V2 Scrcpy Engine
         private IScrcpyControlEngine _scrcpyEngine;
         private AndroidDeviceManager? _deviceManager;
+        private WinForms.NotifyIcon? _trayIcon;
+        private bool _exitRequested;
+        private bool _trayHintShown;
+        private double _heightBeforeAdvanced;
+        private double _topBeforeAdvanced;
+        private bool _updatingLanguage;
 
 
         public MainWindow()
         {
             InitializeComponent();
+            InitializeTrayIcon();
+            CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
+            CmbLanguage.SelectedValue = Localization.Preference;
+            ApplyLanguageLayout();
             TxtLocalIP.Text = GetLocalIPAddress();
             TxtPort.Text = Config.DefaultPort.ToString();
-            
-            var savedTheme = ThemeManager.LoadThemePreference();
-            foreach (System.Windows.Controls.ComboBoxItem item in CmbTheme.Items)
-            {
-                if (item.Tag.ToString() == savedTheme.ToString())
-                {
-                    CmbTheme.SelectedItem = item;
-                    break;
-                }
-            }
+            UpdateThemeButtons();
             
             // Auto-start the server
             BtnStart_Click(null, null);
@@ -113,8 +124,8 @@ namespace WindowsHost
             _edgeHandoffService.Start();
 
             _scrcpyEngine.StateChanged += (s, state) => Dispatcher.InvokeAsync(() => {
-                TxtEngineState.Text = state.ToString().ToUpper();
-                TxtEngineStatus.Text = state.ToString().ToUpper();
+                Localization.SetStatus(TxtEngineState, state.ToString().ToUpper());
+                Localization.SetStatus(TxtEngineStatus, state.ToString().ToUpper());
 
                 switch (state)
                 {
@@ -165,6 +176,8 @@ namespace WindowsHost
                         UpdateTransportDisplay();
                         break;
                 }
+                UpdateEngineBadge();
+                UpdateTransportDisplay();
             });
 
             _scrcpyEngine.Error += (s, msg) => Dispatcher.InvokeAsync(() => {
@@ -214,23 +227,175 @@ namespace WindowsHost
             // _showInputDebug bool controls debug output if needed.
 
             Loaded += (_, _) => {
-                TxtEngineState.Text = "WAITING APK";
-                TxtEngineStatus.Text = "WAITING APK";
+                Localization.SetStatus(TxtEngineState, "WAITING APK");
+                Localization.SetStatus(TxtEngineStatus, "WAITING APK");
                 BtnStartEngine.IsEnabled = false;
+                UpdateEngineBadge();
                 Log("Waiting for Connect in the Android app. Engine starts automatically after HELLO.");
             };
 
         }
 
-        private void CmbTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void BtnThemeLight_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Light);
+
+        private void BtnThemeDark_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Dark);
+
+        private void SetTheme(AppTheme theme)
         {
-            if (CmbTheme.SelectedItem is System.Windows.Controls.ComboBoxItem selectedItem)
+            ThemeManager.SaveThemePreference(theme);
+            UpdateThemeButtons();
+        }
+
+        private void UpdateThemeButtons()
+        {
+            bool dark = ThemeManager.IsDarkTheme(ThemeManager.LoadThemePreference());
+            BtnThemeLight.Background = (Brush)FindResource(dark ? "SurfaceSoftBrush" : "BrandCoralSoftBrush");
+            BtnThemeLight.Foreground = (Brush)FindResource(dark ? "TextSecondaryBrush" : "BrandCoralBrush");
+            BtnThemeDark.Background = (Brush)FindResource(dark ? "BrandCoralSoftBrush" : "SurfaceSoftBrush");
+            BtnThemeDark.Foreground = (Brush)FindResource(dark ? "BrandCoralBrush" : "TextSecondaryBrush");
+            UpdateEngineBadge();
+        }
+
+        private void CmbLanguage_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_updatingLanguage || CmbLanguage.SelectedValue is not string code) return;
+            Localization.Save(code);
+            _updatingLanguage = true;
+            try {
+                CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
+                CmbLanguage.SelectedValue = code;
+            } finally { _updatingLanguage = false; }
+            ApplyLanguageLayout();
+            if (_trayIcon?.ContextMenuStrip is { } menu) {
+                menu.Items[0].Text = Localization.T("Restore"); menu.Items[1].Text = Localization.T("Exit");
+            }
+            Dispatcher.BeginInvoke(() => {
+                UpdateLayout();
+                var area = SystemParameters.WorkArea;
+                Height = Math.Min(area.Height - 8, MainContent.ActualHeight + MainContent.Margin.Top + MainContent.Margin.Bottom);
+                Top = Math.Max(area.Top, Math.Min(Top, area.Bottom - Height));
+            });
+        }
+
+        private void UpdateEngineBadge()
+        {
+            TxtEngineState.Foreground = (Brush)FindResource(
+                _scrcpyEngine?.State == ScrcpyEngineState.Ready
+                    ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+        }
+
+        private double MeasureLabel(string source, double size, FontWeight weight)
+        {
+            var text = new FormattedText(Localization.T(source), System.Globalization.CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight, new Typeface(FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
+                size, (Brush)FindResource("TextPrimaryBrush"), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            return Math.Ceiling(text.WidthIncludingTrailingWhitespace);
+        }
+
+        private void ApplyLanguageLayout()
+        {
+            var labels = new[] { "Android Position", "Connection Mode", "Transport / Control", "Sensitivity",
+                "Activation Delay", "Edge Status", "Device", "Local IP", "Port" };
+            var labelWidth = Math.Max(155, labels.Max(x => MeasureLabel(x, 12, FontWeights.Normal)) + 18);
+            labelWidth = Math.Max(labelWidth, new[] { "Running", "Stopped", "Error" }
+                .Max(x => MeasureLabel(x, 22, FontWeights.Bold)) + 14);
+            System.Windows.Application.Current.Resources["FieldLabelWidth"] = new GridLength(labelWidth);
+            BtnStart.Width = MeasureLabel("Start Server", FontSize, FontWeights.SemiBold) + 30;
+            BtnStop.Width = Math.Max(52, MeasureLabel("Stop", FontSize, FontWeights.SemiBold) + 30);
+            CmbActiveEdge.Width = Math.Max(130, new[] { "Right", "Left", "Top", "Bottom", "Disabled" }
+                .Max(x => MeasureLabel(x, FontSize, FontWeights.Normal)) + 44);
+            CmbConnectionMode.Width = Math.Max(130, MeasureLabel("Auto", FontSize, FontWeights.Normal) + 44);
+            var fieldWidth = Math.Max(CmbActiveEdge.Width, Math.Max(CmbConnectionMode.Width, BtnStart.Width + BtnStop.Width + 8));
+            // Use the same two columns in every language; expand only as much as the translated content needs.
+            var cardWidth = labelWidth + fieldWidth + 34;
+            var actionWidth = new[] { "Capture Android", "Return Windows" }.Sum(x => MeasureLabel(x, FontSize, FontWeights.SemiBold) + 30) + 8 + 34;
+            var titles = new[] { "Connection Status", "Android Device", "Screen Edge", "Network" }
+                .Max(x => MeasureLabel(x, 17, FontWeights.SemiBold)) + 34;
+            cardWidth = Math.Max(cardWidth, Math.Max(actionWidth, titles));
+            var desired = Math.Max(740, cardWidth * 2 + 12 + 32);
+            var available = SystemParameters.WorkArea.Width - 8;
+            MinWidth = Math.Min(desired, available);
+            Width = MinWidth;
+            if (IsLoaded) Left = Math.Max(SystemParameters.WorkArea.Left, Math.Min(Left, SystemParameters.WorkArea.Right - Width));
+        }
+
+        private void BtnAdvanced_Click(object sender, RoutedEventArgs e)
+        {
+            if (AdvancedPanel.Visibility == Visibility.Visible)
             {
-                if (Enum.TryParse(selectedItem.Tag.ToString(), out AppTheme theme))
+                AdvancedPanel.Visibility = Visibility.Collapsed;
+                if (_heightBeforeAdvanced > 0)
                 {
-                    ThemeManager.SaveThemePreference(theme);
+                    Height = _heightBeforeAdvanced;
+                    Top = _topBeforeAdvanced;
                 }
             }
+            else
+            {
+                _heightBeforeAdvanced = Height;
+                _topBeforeAdvanced = Top;
+                AdvancedPanel.Visibility = Visibility.Visible;
+                UpdateLayout();
+                var workArea = SystemParameters.WorkArea;
+                var contentHeight = MainContent.ActualHeight + MainContent.Margin.Top + MainContent.Margin.Bottom;
+                Height = Math.Min(workArea.Height - 8, Math.Max(_heightBeforeAdvanced, contentHeight));
+                Top = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - Height));
+            }
+        }
+
+        private void Header_DragMove(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                DragMove();
+        }
+
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void InitializeTrayIcon()
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControl152D4D.ico");
+            var menu = new WinForms.ContextMenuStrip();
+            menu.Items.Add(Localization.T("Restore"), null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
+            menu.Items.Add(Localization.T("Exit"), null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
+            _trayIcon = new WinForms.NotifyIcon
+            {
+                Icon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : Drawing.SystemIcons.Application,
+                Text = "EZ Across Control",
+                ContextMenuStrip = menu,
+                Visible = true
+            };
+            _trayIcon.DoubleClick += (_, _) => Dispatcher.BeginInvoke(RestoreFromTray);
+        }
+
+        private void RestoreFromTray()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
+        private void ExitFromTray()
+        {
+            _exitRequested = true;
+            Close();
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            if (!_exitRequested)
+            {
+                e.Cancel = true;
+                Hide();
+                if (!_trayHintShown && _trayIcon != null)
+                {
+                    _trayHintShown = true;
+                    _trayIcon.ShowBalloonTip(2500, "EZ Across Control", "Running in the background. Double-click the tray icon to restore.", WinForms.ToolTipIcon.Info);
+                }
+                return;
+            }
+            base.OnClosing(e);
         }
 
         private string GetLocalIPAddress()
@@ -252,7 +417,7 @@ namespace WindowsHost
         {
             try
             {
-                System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now:HH:mm:ss}] {message}\n");
+                System.IO.File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "server_log.txt"), $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch { }
             
@@ -267,7 +432,7 @@ namespace WindowsHost
         {
             if (!int.TryParse(TxtPort.Text, out int port))
             {
-                MessageBox.Show("Invalid port");
+                MessageBox.Show(Localization.T("Invalid port"));
                 return;
             }
 
@@ -288,15 +453,15 @@ namespace WindowsHost
             }
             catch (HttpListenerException ex) when (ex.ErrorCode == 5)
             {
-                TxtServerStatus.Text = "Error";
+                Localization.SetStatus(TxtServerStatus, "Error");
                 Log($"[SERVER] Error: Access Denied (HTTP 400 cause). You MUST run EZ Across Control as Administrator to listen on LAN IP.");
-                MessageBox.Show("Please restart the application as Administrator to accept LAN connections.", "Administrator Required");
+                MessageBox.Show(Localization.T("Please restart the application as Administrator to accept LAN connections."), Localization.T("Administrator Required"));
                 _listener?.Close();
                 _listener = null;
             }
             catch (Exception ex)
             {
-                TxtServerStatus.Text = "Error";
+                Localization.SetStatus(TxtServerStatus, "Error");
                 Log($"[SERVER] Error starting server: {ex.Message}");
                 _listener?.Close();
                 _listener = null;
@@ -305,7 +470,7 @@ namespace WindowsHost
 
         private void StartListening(string prefix)
         {
-            TxtServerStatus.Text = "Running";
+            Localization.SetStatus(TxtServerStatus, "Running");
             BtnStart.IsEnabled = false;
             BtnStop.IsEnabled = true;
             TxtPort.IsEnabled = false;
@@ -322,6 +487,12 @@ namespace WindowsHost
                 try
                 {
                     var context = await _listener.GetContextAsync();
+
+                    if (!context.Request.IsWebSocketRequest && context.Request.Url?.AbsolutePath == "/readiness")
+                    {
+                        ProcessRequest(context);
+                        continue;
+                    }
                     
                     Log($"--- HTTP Request ---");
                     Log($"Method: {context.Request.HttpMethod}");
@@ -362,6 +533,31 @@ namespace WindowsHost
         {
             try
             {
+                if (!context.Request.IsWebSocketRequest)
+                {
+                    if (context.Request.HttpMethod != "GET" || context.Request.Url?.AbsolutePath != "/readiness")
+                    { context.Response.StatusCode = 404; context.Response.Close(); return; }
+                    var name = context.Request.QueryString["device"];
+                    if (string.IsNullOrWhiteSpace(name) || name.Length > 128)
+                    { context.Response.StatusCode = 400; context.Response.Close(); return; }
+                    if (!await _readinessGate.WaitAsync(0))
+                    { context.Response.StatusCode = 503; context.Response.Close(); return; }
+                    try
+                    {
+                        var address = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
+                        var devices = await new AndroidDeviceManager().GetDevicesAsync();
+                        var result = new {
+                            UsbReady = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb, name, address) != null,
+                            WifiReady = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Network, name, address) != null
+                        };
+                        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(result));
+                        context.Response.ContentType = "application/json";
+                        context.Response.Headers["Cache-Control"] = "no-store";
+                        await context.Response.OutputStream.WriteAsync(bytes);
+                    }
+                    finally { _readinessGate.Release(); context.Response.Close(); }
+                    return;
+                }
                 var wsContext = await context.AcceptWebSocketAsync(null);
                 Log("Client connected.");
                 
@@ -448,7 +644,20 @@ namespace WindowsHost
                     Dispatcher.Invoke(() => TxtDeviceName.Text = deviceName);
                     Log($"Received HELLO from {deviceName} (v{clientVersion})");
 
+                    _controlPaused = false;
+                    if (payload.TryGetProperty("ConnectionMode", out var requestedMode))
+                    {
+                        var mode = requestedMode.GetString() switch {
+                            "USB" => ConnectionMode.Usb, "Wi-Fi" => ConnectionMode.Network,
+                            "Auto" => ConnectionMode.Auto, _ => _appSettings.ConnectionMode
+                        };
+                        Dispatcher.Invoke(() => {
+                            _appSettings.ConnectionMode = mode;
+                            CmbConnectionMode.SelectedIndex = (int)mode;
+                        });
+                    }
                     _androidHandshakeComplete = true;
+                    _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
                     Dispatcher.InvokeAsync(async () => await StartEngineAsync());
 
@@ -501,6 +710,16 @@ namespace WindowsHost
                             // Re-arm guard
                             (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
                         }
+                    });
+                }
+                else if (type == "CONTROL_STOP")
+                {
+                    if (!ReferenceEquals(socket, _currentSocket) || !IsAndroidCompanionConnected()) return;
+                    _controlPaused = true;
+                    Dispatcher.InvokeAsync(async () => {
+                        await _scrcpyEngine.ReleaseAsync();
+                        SafeReleaseInputOwnership("Android Stop Control");
+                        UpdateTransportDisplay();
                     });
                 }
                 else if (type == "INPUT_HANDOFF_END")
@@ -642,7 +861,7 @@ namespace WindowsHost
                 _listener.Close();
                 _listener = null;
                 
-                TxtServerStatus.Text = "Stopped";
+                Localization.SetStatus(TxtServerStatus, "Stopped");
                 BtnStart.IsEnabled = true;
                 BtnStop.IsEnabled = false;
                 TxtPort.IsEnabled = true;
@@ -655,6 +874,13 @@ namespace WindowsHost
         protected override void OnClosed(EventArgs e)
         {
             _closing = true;
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+                _trayIcon.ContextMenuStrip?.Dispose();
+                _trayIcon.Dispose();
+                _trayIcon = null;
+            }
             _transportTimer.Stop();
             SafeReleaseInputOwnership("App closed");
 
@@ -846,10 +1072,7 @@ namespace WindowsHost
             if (_deviceManager == null) _deviceManager = new AndroidDeviceManager();
             var devices = await _deviceManager.GetDevicesAsync();
             var mode = _appSettings.ConnectionMode;
-            bool needsWireless = mode == ConnectionMode.Network
-                || (mode == ConnectionMode.Auto
-                    && AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
-                        _companionDeviceName, _companionAddress) == null);
+            bool needsWireless = mode == ConnectionMode.Network || mode == ConnectionMode.Auto;
             if (needsWireless && AndroidDeviceManager.FindCompanionDevice(devices,
                 ConnectionMode.Network, _companionDeviceName, _companionAddress) == null)
             {
@@ -885,7 +1108,7 @@ namespace WindowsHost
             }
             else
             {
-                TxtDeviceName.Text = "No Device Found";
+                TxtDeviceName.Text = Localization.T("No Device Found");
                 _engineTransport = "-";
                 UpdateTransportDisplay();
                 if (_lastUnavailableMode != mode.ToString()) Log(mode == ConnectionMode.Network
@@ -895,13 +1118,15 @@ namespace WindowsHost
                         : "Automatic engine start: no matching ADB device found. Check the cable or paired Wireless debugging.");
                 _lastUnavailableMode = mode.ToString();
                 BtnStartEngine.IsEnabled = true;
-                TxtEngineState.Text = "NO DEVICE";
-                TxtEngineStatus.Text = "NO DEVICE";
+                Localization.SetStatus(TxtEngineState, "NO DEVICE");
+                Localization.SetStatus(TxtEngineStatus, "NO DEVICE");
+                UpdateEngineBadge();
                 return;
             }
             
             _lastUnavailableMode = null;
-            TxtEngineState.Text = "STARTING...";
+            Localization.SetStatus(TxtEngineState, "STARTING...");
+            UpdateEngineBadge();
             BtnStartEngine.IsEnabled = false;
             await _scrcpyEngine.StartAsync(mode, device);
             UpdateTransportDisplay();
@@ -941,7 +1166,23 @@ namespace WindowsHost
                 : "-";
             TxtTransport.Text = _engineTransport;
             BtnCaptureAndroid.IsEnabled = IsAndroidCompanionConnected()
-                && _scrcpyEngine.State == ScrcpyEngineState.Ready;
+                && !_controlPaused && _scrcpyEngine.State == ScrcpyEngineState.Ready;
+            var signature = _engineTransport + ":" + _scrcpyEngine.State + ":" + _controlPaused;
+            if (IsAndroidCompanionConnected() && signature != _lastPublishedSessionStatus)
+            {
+                _lastPublishedSessionStatus = signature;
+                SendMessage(_currentSocket!, JsonSerializer.Serialize(new MessageEnvelope
+                {
+                    Type = "SESSION_STATUS",
+                    ProtocolVersion = 1,
+                    Payload = new
+                    {
+                        ControlTransport = _engineTransport == "-" ? null : _engineTransport,
+                        EngineState = _scrcpyEngine.State.ToString(),
+                        ControlEnabled = !_controlPaused
+                    }
+                }));
+            }
         }
 
         private bool UsesNativeScrcpyInput()
@@ -951,7 +1192,7 @@ namespace WindowsHost
 
         private bool IsHandoffAvailable()
         {
-            return IsAndroidCompanionConnected() && _scrcpyEngine.IsRunning;
+            return IsAndroidCompanionConnected() && !_controlPaused && _scrcpyEngine.IsRunning;
         }
 
         private bool ParkNativeInputAtEdge(NativeMethods.POINT entryPointer)
@@ -1020,12 +1261,12 @@ namespace WindowsHost
             {
                 switch (e.State)
                 {
-                    case EdgeState.Idle: TxtEdgeStatus.Text = "Waiting"; break;
-                    case EdgeState.Candidate: TxtEdgeStatus.Text = "Edge detected"; break;
-                    case EdgeState.Armed: TxtEdgeStatus.Text = "Ready to switch"; break;
+                    case EdgeState.Idle: Localization.SetStatus(TxtEdgeStatus, "Waiting"); break;
+                    case EdgeState.Candidate: Localization.SetStatus(TxtEdgeStatus, "Edge Detected"); break;
+                    case EdgeState.Armed: Localization.SetStatus(TxtEdgeStatus, "Ready To Switch"); break;
                     case EdgeState.Disabled:
                     case EdgeState.Cancelled:
-                        TxtEdgeStatus.Text = e.State.ToString();
+                        Localization.SetStatus(TxtEdgeStatus, e.State.ToString());
                         break;
                 }
             });

@@ -1,6 +1,6 @@
 # EZ Across Control - Communication Protocol
 
-All communication between the Windows Host and the Android Client occurs over WebSockets using JSON format.
+The companion session uses LAN WebSockets with JSON. A read-only LAN HTTP readiness query uses the same configured Host IP and port.
 
 ## Protocol Versioning
 The current protocol version is `1`. Both the `HELLO` and `WELCOME` messages exchange this version.
@@ -37,10 +37,23 @@ Sent by the Client upon connection to introduce itself to the server.
   "Sequence": 1,
   "Timestamp": 1695034800000,
   "Payload": {
-    "DeviceName": "Android Tablet X"
+    "DeviceName": "Android Tablet X",
+    "ConnectionMode": "Auto"
   }
 }
 ```
+
+`ConnectionMode` is optional for older clients. Accepted values are `Auto`, `Wi-Fi`, and `USB`. It selects the Host's ADB control transport; companion messages always use LAN. Auto prefers authorized Wi-Fi ADB, then authorized USB ADB.
+
+#### CONTROL_STOP
+Sent by the current, handshaken Android companion when Stop Control is pressed. The Host blocks automatic and manual capture, releases native input, and publishes `SESSION_STATUS` with `ControlEnabled: false`. Reconnecting with a new HELLO resumes control. This does not change Android Accessibility or debugging settings.
+
+```json
+{"Type":"CONTROL_STOP","ProtocolVersion":1,"Payload":{}}
+```
+
+#### LAN readiness query
+Before connecting, the companion can issue `GET /readiness?device=<Build.MODEL>`. The Host returns only `UsbReady` and `WifiReady` booleans for online, authorized ADB devices matching the requester's address/model. Offline and unauthorized entries are excluded. This read does not start control or change settings. A missing or unreachable endpoint is not proof of readiness.
 
 #### WELCOME
 Sent by the Server in response to a `HELLO` message.
@@ -67,6 +80,25 @@ Used for latency measurement.
   }
 }
 ```
+
+#### SESSION_STATUS
+Sent by the Host after HELLO and whenever its control engine or selected transport changes.
+The companion WebSocket remains on the LAN. ControlTransport describes the actual
+scrcpy input transport selected by the Host, not the companion socket.
+```json
+{
+  "Type": "SESSION_STATUS",
+  "ProtocolVersion": 1,
+  "Payload": {
+    "ControlTransport": "Wi-Fi",
+    "EngineState": "Ready",
+    "ControlEnabled": true
+  }
+}
+```
+ControlTransport is "USB", "Wi-Fi", or null when the control engine is unavailable.
+The client displays a green transport label only for a confirmed USB or Wi-Fi value.
+Older clients may ignore this optional status message.
 
 ### Input Injection (Phase 2.3+)
 

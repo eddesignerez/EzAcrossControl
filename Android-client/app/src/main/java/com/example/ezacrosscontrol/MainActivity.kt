@@ -12,6 +12,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.ezacrosscontrol.data.AppTheme
 import com.example.ezacrosscontrol.data.PreferencesManager
 import com.example.ezacrosscontrol.theme.EZAcrossControlTheme
@@ -27,6 +30,16 @@ import android.content.Intent
 class MainActivity : ComponentActivity() {
     private lateinit var webSocketClient: WebSocketClient
     private val sessionManager = InputSessionManager()
+    private var darkSystemBars = false
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val bars = WindowCompat.getInsetsController(window, window.decorView)
+            bars.isAppearanceLightStatusBars = !darkSystemBars
+            bars.isAppearanceLightNavigationBars = !darkSystemBars
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +48,9 @@ class MainActivity : ComponentActivity() {
         val prefsManager = PreferencesManager(this)
 
         setContent {
+            val language by prefsManager.languageFlow.collectAsState(initial = "system")
+            val systemLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].toLanguageTag()
+            val strings = remember(language, systemLocale) { AppStrings(applicationContext, language) }
             val theme by prefsManager.themeFlow.collectAsState(initial = AppTheme.System)
             val isDark = when (theme) {
                 AppTheme.Dark -> true
@@ -43,11 +59,13 @@ class MainActivity : ComponentActivity() {
             }
 
             SideEffect {
+                darkSystemBars = isDark
                 val bars = WindowCompat.getInsetsController(window, window.decorView)
                 bars.isAppearanceLightStatusBars = !isDark
                 bars.isAppearanceLightNavigationBars = !isDark
             }
 
+            CompositionLocalProvider(LocalStrings provides strings) {
             EZAcrossControlTheme(darkTheme = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -55,6 +73,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(webSocketClient, prefsManager, sessionManager)
                 }
+            }
             }
         }
     }
@@ -69,33 +88,88 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManager, sessionManager: InputSessionManager) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
     val savedIp by prefsManager.ipFlow.collectAsState(initial = "")
     val savedPort by prefsManager.portFlow.collectAsState(initial = Config.DEFAULT_PORT)
     val savedTheme by prefsManager.themeFlow.collectAsState(initial = AppTheme.System)
+    val language by prefsManager.languageFlow.collectAsState(initial = "system")
 
     var ip by remember(savedIp) { mutableStateOf(savedIp.ifEmpty { "192.168." }) }
     var port by remember(savedPort) { mutableStateOf(savedPort) }
     var isConnected by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Disconnected") }
+    var isConnecting by remember { mutableStateOf(false) }
+    var connectionProgress by remember { mutableStateOf(0f) }
+    var controlTransport by remember { mutableStateOf<String?>(null) }
+    var status by remember { mutableStateOf("") }
+    var accessibilityEnabled by remember { mutableStateOf(AndroidControlManager.isAccessibilityEnabled) }
+    var controlState by remember { mutableStateOf(AndroidControlManager.currentState) }
+    var controlStopped by remember { mutableStateOf(AndroidControlManager.isManuallyStopped) }
+    var readiness by remember { mutableStateOf(ConnectionReadiness()) }
+    val connectionMode by prefsManager.connectionModeFlow.collectAsState(initial = "Auto")
+    var keyboardEnabled by remember { mutableStateOf(false) }
+    var keyboardSelected by remember { mutableStateOf(false) }
+    val probe = remember { HostReadinessProbe() }
     var latency by remember { mutableStateOf<Long?>(null) }
     var logText by remember { mutableStateOf("") }
-    
+
     var lastEvent by remember { mutableStateOf(sessionManager.lastEvent) }
     var lastSequence by remember { mutableStateOf(sessionManager.lastSequence) }
     var currentHz by remember { mutableStateOf(sessionManager.currentHz) }
-    
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(ip, port, lifecycleOwner) {
+        fun setting(key: String): Boolean? = try {
+            Settings.Global.getInt(context.contentResolver, key) == 1
+        } catch (_: Settings.SettingNotFoundException) { null }
+          catch (_: SecurityException) { null }
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                accessibilityEnabled = AndroidControlManager.isAccessibilityEnabled
+                controlState = AndroidControlManager.currentState
+                controlStopped = AndroidControlManager.isManuallyStopped
+                val ime = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                val component = android.content.ComponentName(context, com.example.ezacrosscontrol.control.keyboard.EZAcrossInputMethodService::class.java)
+                keyboardEnabled = ime.enabledInputMethodList.any { android.content.ComponentName.unflattenFromString(it.id) == component }
+                keyboardSelected = android.content.ComponentName.unflattenFromString(
+                    Settings.Secure.getString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD).orEmpty()) == component
+                val developer = setting(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)
+                val usb = setting(Settings.Global.ADB_ENABLED)
+                val wifi = setting("adb_wifi_enabled")
+                val (host, usbConnected, wifiConnected) = probe.check(ip, port)
+                readiness = ConnectionReadiness(developer, usb, wifi, host, usbConnected, wifiConnected)
+                delay(2000)
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         webSocketClient.onConnectionStateChanged = { connected ->
+            coroutineScope.launch {
             isConnected = connected
-            status = if (connected) "Connected" else "Disconnected"
+            isConnecting = false
+            connectionProgress = if (connected) 1f else 0f
+            status = ""
             AndroidControlManager.onConnectionStateChanged(connected)
             if (!connected) {
+                controlTransport = null
                 sessionManager.reset()
                 lastEvent = sessionManager.lastEvent
                 lastSequence = sessionManager.lastSequence
                 currentHz = sessionManager.currentHz
                 latency = null
+            }
+            }
+        }
+        webSocketClient.onConnectionProgressChanged = { progress ->
+            coroutineScope.launch {
+                isConnecting = true
+                connectionProgress = progress
+            }
+        }
+        webSocketClient.onConnectionFailure = { message ->
+            coroutineScope.launch {
+                isConnecting = false
+                status = message
             }
         }
         webSocketClient.onLatencyUpdated = { l ->
@@ -105,9 +179,17 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
             logText = "[$msg]\n$logText".take(8000)
         }
         webSocketClient.onEventReceived = { env ->
+            if (env.type == "SESSION_STATUS") {
+                coroutineScope.launch {
+                    val transport = env.payload.optString("ControlTransport").takeIf { it == "USB" || it == "Wi-Fi" }
+                    if (transport == null && controlTransport != null) status = "Controle desconectado. Verifique a depuração."
+                    if (transport != null) status = ""
+                    controlTransport = transport
+                }
+            }
             sessionManager.onEventReceived(env)
         }
-        
+
         sessionManager.onMouseMove = { nx, ny, dx, dy -> AndroidControlManager.handleMouseMoveWithState(nx, ny, dx, dy) }
         sessionManager.onMouseButton = { btn, act -> AndroidControlManager.handleMouseButtonWithState(btn, act) }
         sessionManager.onMouseWheel = { dx, dy -> AndroidControlManager.handleMouseWheel(dx, dy) }
@@ -119,10 +201,13 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         sessionManager.onHandoffCancel = { AndroidControlManager.handleHandoffEnd(-1) }
     }
 
-    var controlState by remember { mutableStateOf(AndroidControlManager.currentState) }
     LaunchedEffect(Unit) {
         AndroidControlManager.onStateChanged = { newState ->
+            coroutineScope.launch {
             controlState = newState
+            accessibilityEnabled = AndroidControlManager.isAccessibilityEnabled
+            controlStopped = AndroidControlManager.isManuallyStopped
+            }
         }
         AndroidControlManager.onRequestHandoffEnd = {
             val msg = org.json.JSONObject().apply {
@@ -172,10 +257,22 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         ip = ip,
         port = port,
         theme = savedTheme,
+        language = language,
+        onLanguageChange = { value -> coroutineScope.launch { prefsManager.setLanguage(value) } },
         isConnected = isConnected,
+        isConnecting = isConnecting,
+        connectionProgress = connectionProgress,
+        controlTransport = controlTransport,
         status = status,
         latency = latency,
         controlState = controlState,
+        accessibilityEnabled = accessibilityEnabled,
+        controlStopped = controlStopped,
+        readiness = readiness,
+        connectionMode = connectionMode,
+        keyboardEnabled = keyboardEnabled,
+        keyboardSelected = keyboardSelected,
+        onConnectionModeChange = { value -> coroutineScope.launch { prefsManager.setConnectionMode(value) } },
         lastEvent = lastEvent,
         lastSequence = lastSequence,
         currentHz = currentHz,
@@ -189,10 +286,21 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
             coroutineScope.launch { prefsManager.setPort(value) }
         },
         onThemeChange = { value -> coroutineScope.launch { prefsManager.setTheme(value) } },
-        onConnect = { webSocketClient.connect(ip, port) },
+        onConnect = {
+            status = ""
+            webSocketClient.connect(ip, port, connectionMode)
+        },
         onDisconnect = { webSocketClient.disconnect() },
         onOpenAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-        onStopControl = { AndroidControlManager.stopRemoteControl() },
+        onOpenDeveloperSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) },
+        onStopControl = {
+            webSocketClient.sendMessage(org.json.JSONObject().apply {
+                put("Type", "CONTROL_STOP"); put("ProtocolVersion", 1)
+                put("Payload", org.json.JSONObject())
+            }.toString())
+            AndroidControlManager.stopRemoteControl()
+            webSocketClient.disconnect()
+        },
         onEnableIme = { context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) },
         onSelectIme = {
             val inputMethodManager = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager

@@ -7,16 +7,28 @@ plugins {
 android {
     namespace = "com.example.ezacrosscontrol"
     compileSdk = 36
+    sourceSets["main"].assets.srcDir("../../Localization")
+    testOptions { unitTests.isIncludeAndroidResources = true }
+    val releaseStore = providers.environmentVariable("EZAC_RELEASE_STORE").orNull
+    if (releaseStore != null) {
+        signingConfigs.create("distribution") {
+            storeFile = file(releaseStore)
+            storePassword = providers.environmentVariable("EZAC_RELEASE_PASSWORD").get()
+            keyAlias = "ezacrosscontrol"
+            keyPassword = storePassword
+        }
+    }
     defaultConfig {
         applicationId = "com.example.ezacrosscontrol"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     buildTypes {
         release {
+            if (releaseStore != null) signingConfig = signingConfigs.getByName("distribution")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -69,6 +81,7 @@ dependencies {
 
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
+  testImplementation("org.robolectric:robolectric:4.17")
   testImplementation(libs.kotlinx.coroutines.test)
 
   // Instrumented tests: jUnit rules and runners

@@ -1,7 +1,7 @@
 # Network Configuration
 
 ## Default Settings
-- **Default Port**: 8787 (Legacy port 8765 is no longer used by default due to conflicts)
+- **Default Port**: 8765. The previous development build used 8787; an existing Android preference can still contain that value. Enter the same port in both applications.
 - **Transport**: WebSockets over LAN
 - **Routing**: Strictly Local Area Network. No Cloud.
 
