@@ -1,6 +1,6 @@
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
-    public class EdgeTransitionOptions
+    public class EdgeOptions
     {
         public ScreenEdge ActiveEdge { get; set; } = ScreenEdge.Right;
         public int EdgeThresholdPixels { get; set; } = 6;

@@ -19,3 +19,39 @@ local.properties
 
 # General
 .DS_Store
+
+# Local toolchains, staging and diagnostics
+.dotnet/
+.build-layout/
+.publish-staging/
+work/
+server_log.txt
+logcat*.txt
+recent_logs.txt
+Walkthrough-*.md
+
+# Local and generated configuration
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.apk
+
+# Rebuildable Android/scrcpy outputs and independent upstream checkouts
+Android-server/server.jar
+third_party/scrcpy/
+third_party/scrcpy-src/
+third_party/scrcpy-ezacross/bin/
+scrcpy-repo/
+
+# Non-distributable local observations and obsolete helper
+Docs/phase-1.6-validation.md
+Docs/phase-2.3.5-physical-validation.md
+Docs/v2/automatic-usb-handoff.md
+Windows-host/test_ws.py
+Windows-host/Fonts/Inter.ttc
+Windows-host/Fonts/help.txt

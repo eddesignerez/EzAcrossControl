@@ -23,10 +23,10 @@ namespace WindowsHost.Tests
         public void ScenarioA_IgnoreAPIPA_SelectValid()
         {
             var apipa = new MockNetworkInfo { Ipv4Addresses = { IPAddress.Parse("169.254.83.107") } };
-            var valid = new MockNetworkInfo { Ipv4Addresses = { IPAddress.Parse("192.168.158.151") } };
+            var valid = new MockNetworkInfo { Ipv4Addresses = { IPAddress.Parse("10.240.0.42") } };
             
             var result = NetworkInterfaceSelector.GetPreferredLanIPv4(new[] { apipa, valid });
-            Assert.Equal(IPAddress.Parse("192.168.158.151"), result.Address);
+            Assert.Equal(IPAddress.Parse("10.240.0.42"), result.Address);
         }
 
         [Fact]
@@ -71,3 +71,4 @@ namespace WindowsHost.Tests
         }
     }
 }
+

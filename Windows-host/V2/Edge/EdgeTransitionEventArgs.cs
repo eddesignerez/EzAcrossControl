@@ -1,13 +1,13 @@
 using System;
 
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
     public class EdgeTransitionEventArgs : EventArgs
     {
-        public EdgeTransitionState State { get; }
+        public EdgeState State { get; }
         public ScreenEdge Edge { get; }
 
-        public EdgeTransitionEventArgs(EdgeTransitionState state, ScreenEdge edge)
+        public EdgeTransitionEventArgs(EdgeState state, ScreenEdge edge)
         {
             State = state;
             Edge = edge;

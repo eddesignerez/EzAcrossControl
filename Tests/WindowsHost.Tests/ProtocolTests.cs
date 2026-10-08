@@ -32,7 +32,7 @@ namespace WindowsHost.Tests
         public void InputSessionManager_ThrottlesMouseMove()
         {
             var sentMessages = new List<string>();
-            using var sm = new InputSessionManager(msg => sentMessages.Add(msg));
+            using var sm = new InputSessionManager((msg, _) => sentMessages.Add(msg));
             sm.EnableInputStreamingTest = true;
             sm.SetState(InputSessionState.Disconnected); // Should clear and ignore
 
@@ -56,15 +56,15 @@ namespace WindowsHost.Tests
             // Should have sent only 1 coalesced mouse move (maybe 2 if it managed to process in between)
             Assert.True(sentMessages.Count > 0);
             Assert.Contains("INPUT_MOUSE_MOVE", sentMessages.Last());
-            Assert.Contains("\"X\":20", sentMessages.Last());
-            Assert.Contains("\"Y\":30", sentMessages.Last());
+            Assert.Contains("\"x\":20", sentMessages.Last());
+            Assert.Contains("\"y\":30", sentMessages.Last());
         }
 
         [Fact]
         public void InputSessionManager_SequenceIncrements()
         {
             var sentMessages = new List<string>();
-            using var sm = new InputSessionManager(msg => sentMessages.Add(msg));
+            using var sm = new InputSessionManager((msg, _) => sentMessages.Add(msg));
             sm.EnableInputStreamingTest = true;
             sm.SetState(InputSessionState.Controlling);
 
@@ -78,8 +78,8 @@ namespace WindowsHost.Tests
             }
 
             Assert.Equal(2, sentMessages.Count);
-            Assert.Contains("\"Sequence\":1", sentMessages[0]);
-            Assert.Contains("\"Sequence\":2", sentMessages[1]);
+            Assert.Contains("\"sequence\":1", sentMessages[0]);
+            Assert.Contains("\"sequence\":2", sentMessages[1]);
         }
     }
 }

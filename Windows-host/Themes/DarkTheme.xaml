@@ -12,7 +12,8 @@
     <!-- Shared Brand Colors -->
     <Color x:Key="BrandCoralColor">#FF604B</Color>
     <Color x:Key="BrandCoralSoftColor">#3B2833</Color>
-    <Color x:Key="SuccessColor">#16835B</Color>
+    <Color x:Key="OnBrandColor">#FFFFFF</Color>
+    <Color x:Key="SuccessColor">#43C59A</Color>
 
     <!-- Semantic Brushes mapping for Dark Theme -->
     <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
@@ -25,6 +26,7 @@
     
     <SolidColorBrush x:Key="BrandCoralBrush" Color="{StaticResource BrandCoralColor}" />
     <SolidColorBrush x:Key="BrandCoralSoftBrush" Color="{StaticResource BrandCoralSoftColor}" />
+    <SolidColorBrush x:Key="OnBrandBrush" Color="{StaticResource OnBrandColor}" />
     
     <SolidColorBrush x:Key="SuccessPrimaryBrush" Color="{StaticResource SuccessColor}" />
     <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="{StaticResource SurfaceSoftColor}" />

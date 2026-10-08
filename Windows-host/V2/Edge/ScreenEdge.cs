@@ -1,4 +1,4 @@
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
     public enum ScreenEdge
     {

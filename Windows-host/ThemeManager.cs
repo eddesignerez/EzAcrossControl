@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using Application = System.Windows.Application;
 
 namespace WindowsHost
 {
@@ -42,15 +43,7 @@ namespace WindowsHost
 
         public static void ApplyTheme(AppTheme theme)
         {
-            bool isDark = false;
-            if (theme == AppTheme.System)
-            {
-                isDark = IsSystemDarkTheme();
-            }
-            else
-            {
-                isDark = theme == AppTheme.Dark;
-            }
+            bool isDark = IsDarkTheme(theme);
 
             var dict = new ResourceDictionary();
             dict.Source = new Uri(isDark ? "Themes/DarkTheme.xaml" : "Themes/LightTheme.xaml", UriKind.Relative);
@@ -58,6 +51,9 @@ namespace WindowsHost
             Application.Current.Resources.MergedDictionaries.Clear();
             Application.Current.Resources.MergedDictionaries.Add(dict);
         }
+
+        public static bool IsDarkTheme(AppTheme theme) =>
+            theme == AppTheme.Dark || (theme == AppTheme.System && IsSystemDarkTheme());
 
         private static bool IsSystemDarkTheme()
         {

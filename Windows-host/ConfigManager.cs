@@ -1,13 +1,14 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using WindowsHost.Input.Edge;
+using WindowsHost.V2.Edge;
 
 namespace WindowsHost
 {
     public class AppSettings
     {
-        public EdgeTransitionOptions EdgeTransition { get; set; } = new EdgeTransitionOptions();
+        public EdgeOptions EdgeTransition { get; set; } = new EdgeOptions();
+        public WindowsHost.Engine.ConnectionMode ConnectionMode { get; set; } = WindowsHost.Engine.ConnectionMode.Auto;
         // Theme could be migrated here later
     }
 

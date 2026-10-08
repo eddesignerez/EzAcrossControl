@@ -1,7 +1,8 @@
 using System;
+using WindowsHost.Input;
 using System.Collections.Generic;
 
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
     public class MonitorInfo
     {

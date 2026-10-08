@@ -1,0 +1,262 @@
+diff --git a/app/src/main.c b/app/src/main.c
+index 47117423..fedf283d 100644
+--- a/app/src/main.c
++++ b/app/src/main.c
+@@ -22,6 +22,108 @@
+ #ifdef _WIN32
+ #include <windows.h>
+ #include "util/str.h"
++#include "screen.h"
++
++struct sc_screen *ez_screen = NULL;
++bool ez_capture_active = false;
++HANDLE ez_screen_ready = NULL;
++
++static void ezacross_ipc_set_capture(void *userdata) {
++    bool active = (bool)(uintptr_t)userdata;
++    ez_capture_active = active;
++    if (ez_screen) {
++        sc_mouse_capture_set_active(&ez_screen->mc, active);
++    }
++}
++
++static int ezacross_ipc_thread(void *data) {
++    (void)data;
++    HANDLE hPipe;
++    DWORD dwRead, dwWritten;
++
++    fprintf(stderr, "[EZACROSS IPC] thread started\\n");
++
++    while (1) {
++        hPipe = CreateFileA(
++            "\\\\.\\pipe\\EZAcrossScrcpy",
++            GENERIC_READ | GENERIC_WRITE,
++            0,
++            NULL,
++            OPEN_EXISTING,
++            0,
++            NULL);
++
++        if (hPipe != INVALID_HANDLE_VALUE) {
++            fprintf(stderr, "[EZACROSS IPC] connected\\n");
++            break;
++        }
++
++        DWORD err = GetLastError();
++        fprintf(stderr, "[EZACROSS IPC] CreateFile failed error=%lu\\n", err);
++
++        if (err != ERROR_PIPE_BUSY) {
++            SDL_Delay(100);
++            continue;
++        }
++
++        if (!WaitNamedPipeA("\\\\.\\pipe\\EZAcrossScrcpy", 5000)) {
++            fprintf(stderr, "[EZACROSS IPC] connect timeout\\n");
++            continue;
++        }
++    }
++
++    // READY means the native input window exists, not merely that the pipe opened.
++    if (WaitForSingleObject(ez_screen_ready, 10000) != WAIT_OBJECT_0) {
++        CloseHandle(hPipe);
++        return 1;
++    }
++    const char *ready_msg = "READY\n";
++    fprintf(stderr, "[EZACROSS IPC] sending READY\\n");
++    if (!WriteFile(hPipe, ready_msg, (DWORD)strlen(ready_msg), &dwWritten, NULL)) {
++        fprintf(stderr, "[EZACROSS IPC] READY write failed, error=%lu\\n", GetLastError());
++    } else {
++        fprintf(stderr, "[EZACROSS IPC] READY write bytes=%lu\\n", dwWritten);
++    }
++
++    while (1) {
++        char line[128] = {0};
++        int idx = 0;
++        bool eof = false;
++        while (1) {
++            char ch;
++            if (!ReadFile(hPipe, &ch, 1, &dwRead, NULL) || dwRead == 0) {
++                eof = true;
++                break;
++            }
++            if (ch == '\n') {
++                break;
++            }
++            if (ch != '\r' && idx < 127) {
++                line[idx++] = ch;
++            }
++        }
++
++        if (eof) break;
++
++        if (strcmp(line, "CAPTURE_ON") == 0) {
++            bool applied = sc_run_on_main_thread(ezacross_ipc_set_capture, (void*)(uintptr_t)1, true);
++            const char *msg = applied ? "CAPTURED\n" : "ERROR CAPTURE_FAILED\n";
++            WriteFile(hPipe, msg, strlen(msg), &dwWritten, NULL);
++        } else if (strcmp(line, "CAPTURE_OFF") == 0) {
++            bool applied = sc_run_on_main_thread(ezacross_ipc_set_capture, (void*)(uintptr_t)0, true);
++            const char *msg = applied ? "RELEASED\n" : "ERROR RELEASE_FAILED\n";
++            WriteFile(hPipe, msg, strlen(msg), &dwWritten, NULL);
++        } else if (strcmp(line, "SHUTDOWN") == 0) {
++            SDL_Event event;
++            event.type = SDL_EVENT_QUIT;
++            SDL_PushEvent(&event);
++            break;
++        }
++    }
++
++    CloseHandle(hPipe);
++    return 0;
++}
+ #endif
+ 
+ static int
+@@ -33,6 +135,16 @@ main_scrcpy(int argc, char *argv[]) {
+     setbuf(stderr, NULL);
+ #endif
+ 
++// --- EZ ACROSS PATCH: Named Pipe IPC ---
++#ifdef _WIN32
++    fprintf(stderr, "[EZACROSS IPC] thread created\\n");
++    ez_screen_ready = CreateEventA(NULL, TRUE, FALSE, NULL);
++    sc_thread ipc_thread;
++    sc_thread_create(&ipc_thread, ezacross_ipc_thread, "EZAcrossIPC", NULL);
++#endif
++// ---------------------------------------
++
++    fprintf(stderr, "[EZACROSS] IPC patch active\\n");
+     printf("scrcpy " SCRCPY_VERSION
+            " <https://github.com/Genymobile/scrcpy>\n");
+ 
+diff --git a/app/src/mouse_capture.c b/app/src/mouse_capture.c
+index f6fafcfb..e3289d0b 100644
+--- a/app/src/mouse_capture.c
++++ b/app/src/mouse_capture.c
+@@ -3,6 +3,12 @@
+ #include "shortcut_mod.h"
+ #include "util/log.h"
+ 
++#ifdef _WIN32
++// EZ Across controls relative mouse capture through its named-pipe IPC.
++// A click must not reactivate it after CAPTURE_OFF.
++extern bool ez_capture_active;
++#endif
++
+ void
+ sc_mouse_capture_init(struct sc_mouse_capture *mc, SDL_Window *window,
+                       uint8_t shortcut_mods) {
+@@ -64,6 +70,11 @@ sc_mouse_capture_handle_event(struct sc_mouse_capture *mc,
+             break;
+         case SDL_EVENT_MOUSE_BUTTON_UP:
+             if (!sc_mouse_capture_is_active(mc)) {
++#ifdef _WIN32
++                if (!ez_capture_active) {
++                    return true;
++                }
++#endif
+                 sc_mouse_capture_set_active(mc, true);
+                 return true;
+             }
+@@ -81,6 +92,13 @@ sc_mouse_capture_handle_event(struct sc_mouse_capture *mc,
+ 
+ void
+ sc_mouse_capture_set_active(struct sc_mouse_capture *mc, bool capture) {
++#ifdef _WIN32
++    // CAPTURE_OFF may be followed by FOCUS_LOST when the host hides the input
++    // window. Reapplying the same SDL mode can warp the Windows cursor.
++    if (SDL_GetWindowRelativeMouseMode(mc->window) == capture) {
++        return;
++    }
++#endif
+     bool ok = SDL_SetWindowRelativeMouseMode(mc->window, capture);
+     if (!ok) {
+         LOGE("Could not set relative mouse mode to %s: %s",
+diff --git a/app/src/scrcpy.c b/app/src/scrcpy.c
+index f5b644a8..a12e99ac 100644
+--- a/app/src/scrcpy.c
++++ b/app/src/scrcpy.c
+@@ -317,6 +317,11 @@ set_terminal_title_with_prefix(const char *value) {
+     sc_term_set_title(title);
+ }
+ 
++extern struct sc_screen *ez_screen;
++#ifdef _WIN32
++extern HANDLE ez_screen_ready;
++#endif
++
+ enum scrcpy_exit_code
+ scrcpy(struct scrcpy_options *options) {
+     static struct scrcpy scrcpy;
+@@ -788,6 +793,10 @@ aoa_complete:
+             goto end;
+         }
+         screen_initialized = true;
++        ez_screen = &s->screen;
++#ifdef _WIN32
++        SetEvent(ez_screen_ready);
++#endif
+ 
+         if (options->video_playback) {
+             struct sc_frame_source *src = &s->video_decoder.frame_source;
+diff --git a/app/src/screen.c b/app/src/screen.c
+index 05923ab6..aa68009a 100644
+--- a/app/src/screen.c
++++ b/app/src/screen.c
+@@ -540,6 +540,9 @@ sc_screen_init(struct sc_screen *screen,
+ 
+     // Always create the window hidden to prevent blinking during initialization
+     uint32_t window_flags = SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_HIDDEN;
++#ifdef _WIN32
++    if (!params->video) window_flags |= SDL_WINDOW_UTILITY;
++#endif
+     if (params->always_on_top) {
+         window_flags |= SDL_WINDOW_ALWAYS_ON_TOP;
+     }
+@@ -699,13 +702,18 @@ sc_screen_init(struct sc_screen *screen,
+ #endif
+ 
+     if (!screen->video) {
++#ifdef _WIN32
++        // Keep a native focus/input surface, without the blank control window.
++        // Nonzero opacity preserves hit testing (alpha=0 would let clicks through).
++        SDL_SetWindowOpacity(screen->window, 1.0f / 255.0f);
++#endif
+         // Show the window immediately
+         screen->window_shown = true;
+         sc_sdl_show_window(screen->window);
+ 
+         if (sc_screen_is_relative_mode(screen)) {
+-            // Capture mouse immediately if video mirroring is disabled
+-            sc_mouse_capture_set_active(&screen->mc, true);
++            // EZ Across: Do not capture mouse immediately
++            sc_mouse_capture_set_active(&screen->mc, false);
+         }
+     }
+ 
+@@ -1145,8 +1153,8 @@ sc_screen_handle_event(struct sc_screen *screen, const SDL_Event *event) {
+             sc_screen_show_initial_window(screen);
+ 
+             if (sc_screen_is_relative_mode(screen)) {
+-                // Capture mouse on start
+-                sc_mouse_capture_set_active(&screen->mc, true);
++                // EZ Across: Do not capture mouse on start
++                sc_mouse_capture_set_active(&screen->mc, false);
+             }
+ 
+             sc_screen_render(screen, false);
+diff --git a/app/src/uhid/keyboard_uhid.c b/app/src/uhid/keyboard_uhid.c
+index d381bfd7..1422be08 100644
+--- a/app/src/uhid/keyboard_uhid.c
++++ b/app/src/uhid/keyboard_uhid.c
+@@ -62,6 +62,11 @@ sc_key_processor_process_key(struct sc_key_processor *kp,
+ 
+     assert(sc_thread_is_main());
+ 
++    extern bool ez_capture_active;
++    if (!ez_capture_active) {
++        return;
++    }
++
+     if (event->repeat) {
+         // In USB HID protocol, key repeat is handled by the host (Android), so
+         // just ignore key repeat here.

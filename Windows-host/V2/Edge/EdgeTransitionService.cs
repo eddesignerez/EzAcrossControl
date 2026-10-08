@@ -1,14 +1,16 @@
 using System;
 using System.Diagnostics;
+using WindowsHost.Input;
+using EZAcrossControl.Input;
 
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
     public class EdgeTransitionService : IEdgeTransitionService
     {
         private readonly IInputCaptureService _inputCaptureService;
         private readonly MonitorGeometry _monitorGeometry;
-        private EdgeTransitionOptions _options;
-        private EdgeTransitionState _currentState = EdgeTransitionState.Idle;
+        private EdgeOptions _options;
+        private EdgeState _currentState = EdgeState.Idle;
         
         private int _lastX;
         private int _lastY;
@@ -22,24 +24,26 @@ namespace WindowsHost.Input.Edge
         private CancellationTokenSource? _autoArmCts;
         
         private long _candidateEnterTimestamp;
+        private bool _isRearmGuardActive = false;
+        private long _rearmGuardEndTimestamp = 0;
 
         public event EventHandler<EdgeTransitionEventArgs>? StateChanged;
 
-        public EdgeTransitionState CurrentState => _currentState;
-        public EdgeTransitionOptions Options => _options;
+        public EdgeState CurrentState => _currentState;
+        public EdgeOptions Options => _options;
 
         public EdgeTransitionService(IInputCaptureService inputCaptureService, MonitorGeometry? monitorGeometry = null)
         {
             _inputCaptureService = inputCaptureService;
             _monitorGeometry = monitorGeometry ?? new MonitorGeometry();
-            _options = new EdgeTransitionOptions();
+            _options = new EdgeOptions();
             _candidateTimer = new Stopwatch();
         }
 
         public void Start()
         {
             _inputCaptureService.InputEventCaptured += OnInputEventCaptured;
-            ChangeState(EdgeTransitionState.Idle);
+            ChangeState(EdgeState.Idle);
             _hasLastPos = false;
         }
 
@@ -48,29 +52,29 @@ namespace WindowsHost.Input.Edge
             _inputCaptureService.InputEventCaptured -= OnInputEventCaptured;
             _candidateTimer.Stop();
             _autoArmCts?.Cancel();
-            ChangeState(EdgeTransitionState.Disabled);
+            ChangeState(EdgeState.Disabled);
         }
 
-        public void UpdateOptions(EdgeTransitionOptions options)
+        public void UpdateOptions(EdgeOptions options)
         {
             _options = options;
             if (_options.ActiveEdge == ScreenEdge.Disabled)
             {
-                ChangeState(EdgeTransitionState.Disabled);
+                ChangeState(EdgeState.Disabled);
             }
-            else if (_currentState == EdgeTransitionState.Disabled)
+            else if (_currentState == EdgeState.Disabled)
             {
-                ChangeState(EdgeTransitionState.Idle);
+                ChangeState(EdgeState.Idle);
             }
             else
             {
-                ChangeState(EdgeTransitionState.Idle); // Reset state when options change
+                ChangeState(EdgeState.Idle); // Reset state when options change
             }
         }
 
         private void OnInputEventCaptured(object sender, InputEvent e)
         {
-            if (_currentState == EdgeTransitionState.Disabled) return;
+            if (_currentState == EdgeState.Disabled) return;
             if (_options.ActiveEdge == ScreenEdge.Disabled) return;
 
             if (e is MouseInputEvent mouseEvent && mouseEvent.Type == InputEventType.MouseMove)
@@ -79,8 +83,35 @@ namespace WindowsHost.Input.Edge
             }
         }
 
+        public void StartRearmGuard()
+        {
+            _isRearmGuardActive = true;
+            _rearmGuardEndTimestamp = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * 0.250); // 250ms guard
+            ChangeState(EdgeState.Idle);
+            _hasLastPos = false;
+        }
+
         private void ProcessMouseMove(int x, int y)
         {
+            if (_isRearmGuardActive)
+            {
+                if (Stopwatch.GetTimestamp() > _rearmGuardEndTimestamp)
+                {
+                    // Time elapsed, but we also require moving out of the edge zone to fully rearm
+                    if (!IsCursorNearEdge(x, y))
+                    {
+                        _isRearmGuardActive = false;
+                    }
+                }
+
+                if (_isRearmGuardActive)
+                {
+                    _lastX = x;
+                    _lastY = y;
+                    return; // Ignore events while guard is active
+                }
+            }
+
             if (!_hasLastPos)
             {
                 _lastX = x;
@@ -94,12 +125,12 @@ namespace WindowsHost.Input.Edge
             _lastX = x;
             _lastY = y;
 
-            if (_currentState == EdgeTransitionState.Armed)
+            if (_currentState == EdgeState.Armed)
             {
                 // We are already armed, we just check if we moved out of the threshold
                 if (!IsCursorInThreshold(x, y))
                 {
-                    ChangeState(EdgeTransitionState.Idle);
+                    ChangeState(EdgeState.Idle);
                 }
                 return;
             }
@@ -107,7 +138,7 @@ namespace WindowsHost.Input.Edge
             bool inThreshold = IsCursorInThreshold(x, y);
             bool crossedEdge = false;
 
-            if (_currentState == EdgeTransitionState.Idle)
+            if (_currentState == EdgeState.Idle)
             {
                 // Swept Edge Detection: Check if segment crossed the edge zone start
                 if (!inThreshold)
@@ -117,7 +148,7 @@ namespace WindowsHost.Input.Edge
 
                 if (inThreshold || crossedEdge)
                 {
-                    ChangeState(EdgeTransitionState.Candidate);
+                    ChangeState(EdgeState.Candidate);
                     _candidateEnterTimestamp = Stopwatch.GetTimestamp();
                     _candidateTimer.Restart();
                     
@@ -127,7 +158,7 @@ namespace WindowsHost.Input.Edge
                     if (_outwardDelta >= _options.EdgePushThreshold)
                     {
                         _autoArmCts?.Cancel();
-                        ChangeState(EdgeTransitionState.Armed);
+                        ChangeState(EdgeState.Armed);
                         _candidateTimer.Stop();
                         return;
                     }
@@ -145,13 +176,13 @@ namespace WindowsHost.Input.Edge
                     }
                 }
             }
-            else if (_currentState == EdgeTransitionState.Candidate)
+            else if (_currentState == EdgeState.Candidate)
             {
                 if (!inThreshold)
                 {
                     _autoArmCts?.Cancel();
-                    ChangeState(EdgeTransitionState.Cancelled);
-                    ChangeState(EdgeTransitionState.Idle);
+                    ChangeState(EdgeState.Cancelled);
+                    ChangeState(EdgeState.Idle);
                     _candidateTimer.Stop();
                     _outwardDelta = 0;
                 }
@@ -165,10 +196,10 @@ namespace WindowsHost.Input.Edge
                 int delay = _options.EdgeActivationDelayMs > 0 ? _options.EdgeActivationDelayMs : 1;
                 await Task.Delay(delay, token);
                 
-                if (!token.IsCancellationRequested && _currentState == EdgeTransitionState.Candidate)
+                if (!token.IsCancellationRequested && _currentState == EdgeState.Candidate)
                 {
                     // Delay expired, we are still in Candidate, intention remains
-                    ChangeState(EdgeTransitionState.Armed);
+                    ChangeState(EdgeState.Armed);
                 }
             }
             catch (TaskCanceledException)
@@ -179,7 +210,9 @@ namespace WindowsHost.Input.Edge
 
         public void ProcessRawMouseMove(int dx, int dy)
         {
-            if (_currentState == EdgeTransitionState.Candidate)
+            if (_isRearmGuardActive) return;
+
+            if (_currentState == EdgeState.Candidate)
             {
                 if (_options.ActiveEdge == ScreenEdge.Right && dx > 0) _outwardDelta += dx;
                 else if (_options.ActiveEdge == ScreenEdge.Left && dx < 0) _outwardDelta -= dx; // Note: dx is negative, so subtracting makes it positive
@@ -189,11 +222,11 @@ namespace WindowsHost.Input.Edge
                 if (_outwardDelta >= _options.EdgePushThreshold)
                 {
                     _autoArmCts?.Cancel();
-                    ChangeState(EdgeTransitionState.Armed);
+                    ChangeState(EdgeState.Armed);
                     _candidateTimer.Stop();
                 }
             }
-            else if (_currentState == EdgeTransitionState.Idle)
+            else if (_currentState == EdgeState.Idle)
             {
                 if (IsCursorNearEdge(_lastX, _lastY))
                 {
@@ -291,7 +324,7 @@ namespace WindowsHost.Input.Edge
             }
         }
 
-        private void ChangeState(EdgeTransitionState newState)
+        private void ChangeState(EdgeState newState)
         {
             if (_currentState != newState)
             {

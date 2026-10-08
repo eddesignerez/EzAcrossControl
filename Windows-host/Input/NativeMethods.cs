@@ -33,6 +33,14 @@ namespace WindowsHost.Input
 
         // Virtual Keys
         public const int VK_SHIFT = 0x10;
+        public const int VK_LBUTTON = 0x01;
+        public const int VK_RBUTTON = 0x02;
+        public const int VK_MBUTTON = 0x04;
+
+        public static bool IsMouseButtonPressed() =>
+            (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0
+            || (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0
+            || (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
         public const int VK_CONTROL = 0x11;
         public const int VK_MENU = 0x12; // Alt
         public const int VK_LWIN = 0x5B;
@@ -114,6 +122,86 @@ namespace WindowsHost.Input
         public static extern IntPtr GetForegroundWindow();
 
         [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int command);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+        public const uint SWP_NOSIZE = 0x0001;
+        public const uint SWP_NOZORDER = 0x0004;
+        public const uint SWP_NOACTIVATE = 0x0010;
+
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
+
+        public delegate bool WindowEnumDelegate(IntPtr window, IntPtr parameter);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumWindows(WindowEnumDelegate callback, IntPtr parameter);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetWindowText(IntPtr window, System.Text.StringBuilder text, int length);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindow(IntPtr window);
+
+        public static IntPtr FindProcessWindow(int processId, string title)
+        {
+            IntPtr result = IntPtr.Zero;
+            EnumWindows((window, _) =>
+            {
+                GetWindowThreadProcessId(window, out uint owner);
+                if (owner != (uint)processId) return true;
+                var text = new System.Text.StringBuilder(256);
+                GetWindowText(window, text, text.Capacity);
+                if (text.ToString() != title) return true;
+                result = window;
+                return false;
+            }, IntPtr.Zero);
+            return result;
+        }
+
+        public static bool ActivateWindow(IntPtr window)
+        {
+            if (window == IntPtr.Zero) return false;
+            if (GetForegroundWindow() == window) return true;
+            uint current = GetCurrentThreadId();
+            uint foreground = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+            bool attached = foreground != 0 && foreground != current
+                && AttachThreadInput(current, foreground, true);
+            try
+            {
+                if (IsIconic(window)) ShowWindow(window, 9); // SW_RESTORE for minimized windows
+                else if (!IsWindowVisible(window)) ShowWindow(window, 5); // SW_SHOW for hidden scrcpy input
+                return SetForegroundWindow(window);
+            }
+            finally
+            {
+                if (attached) AttachThreadInput(current, foreground, false);
+            }
+        }
+
+        [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         // Monitor APIs
@@ -185,6 +273,11 @@ namespace WindowsHost.Input
 
         [DllImport("user32.dll")]
         public static extern bool GetCursorPos(out POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetCursorPos(int x, int y);
+
 
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT

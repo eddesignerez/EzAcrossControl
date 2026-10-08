@@ -1,6 +1,6 @@
-namespace WindowsHost.Input.Edge
+namespace WindowsHost.V2.Edge
 {
-    public enum EdgeTransitionState
+    public enum EdgeState
     {
         Disabled,
         Idle,

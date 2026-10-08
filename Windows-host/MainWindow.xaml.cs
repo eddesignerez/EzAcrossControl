@@ -13,19 +13,27 @@ using System.Collections.Generic;
 using System.Windows.Threading;
 using System.Threading.Channels;
 using System.Diagnostics;
+using System.ComponentModel;
+using System.IO;
 using WindowsHost.Input;
-using WindowsHost.Input.Edge;
+using WindowsHost.V2.Edge;
 using WindowsHost.Protocol;
 using System.Windows.Input;
 using EZAcrossControl.Input;
+using WindowsHost.Engine;
+using System.Windows.Media;
+using WinForms = System.Windows.Forms;
+using Drawing = System.Drawing;
+using Brush = System.Windows.Media.Brush;
+using MessageBox = System.Windows.MessageBox;
 
 namespace WindowsHost
 {
     public partial class MainWindow : Window
     {
-        private HttpListener _listener;
-        private CancellationTokenSource _cts;
-        private WebSocket _currentSocket;
+        private HttpListener? _listener;
+        private CancellationTokenSource? _cts;
+        private WebSocket? _currentSocket;
         
         public enum PointerOwnershipState
         {
@@ -39,32 +47,46 @@ namespace WindowsHost
         
         private IInputCaptureService _inputCaptureService;
         private DispatcherTimer _inputDebugTimer;
+        private DispatcherTimer _transportTimer;
+        private bool _closing;
+        private string? _lastUnavailableMode;
         private ConcurrentQueue<InputEvent> _inputEventQueue;
         private List<string> _debugLogLines;
         
         private IEdgeTransitionService _edgeTransitionService;
+        private IEdgeHandoffService _edgeHandoffService;
+        private bool _androidHandshakeComplete;
+        private AndroidDevice? _activeDevice;
+        private string _engineTransport = "-";
+        private IntPtr _windowToRestoreAfterNativeCapture;
+        private NativeMethods.POINT? _pointerBeforeCapture;
+        private ScreenEdge _edgeBeforeCapture;
+        private string? _companionAddress;
+        private string? _companionDeviceName;
         private AppSettings _appSettings;
         private InputSessionManager _sessionManager;
-        private UhidDirectBackend _uhidBackend;
+        private bool _showInputDebug = false;
         private Channel<string> _priorityNetworkQueue = Channel.CreateUnbounded<string>();
         private Channel<string> _standardNetworkQueue = Channel.CreateUnbounded<string>();
         private int _currentSessionId = 0;
+        
+        // V2 Scrcpy Engine
+        private IScrcpyControlEngine _scrcpyEngine;
+        private AndroidDeviceManager? _deviceManager;
+        private WinForms.NotifyIcon? _trayIcon;
+        private bool _exitRequested;
+        private bool _trayHintShown;
+        private double _heightBeforeAdvanced;
+        private double _topBeforeAdvanced;
+
 
         public MainWindow()
         {
             InitializeComponent();
+            InitializeTrayIcon();
             TxtLocalIP.Text = GetLocalIPAddress();
             TxtPort.Text = Config.DefaultPort.ToString();
-            
-            var savedTheme = ThemeManager.LoadThemePreference();
-            foreach (System.Windows.Controls.ComboBoxItem item in CmbTheme.Items)
-            {
-                if (item.Tag.ToString() == savedTheme.ToString())
-                {
-                    CmbTheme.SelectedItem = item;
-                    break;
-                }
-            }
+            UpdateThemeButtons();
             
             // Auto-start the server
             BtnStart_Click(null, null);
@@ -73,6 +95,7 @@ namespace WindowsHost
 
             _inputCaptureService = new WindowsInputCaptureService();
             _inputCaptureService.InputEventCaptured += InputCaptureService_InputEventCaptured;
+            _inputCaptureService.StartCapture();
             
             _rawMouseInputService = new WindowsRawMouseInputService(this);
             _rawMouseInputService.InputEventCaptured += RawMouseInputService_InputEventCaptured;
@@ -81,7 +104,77 @@ namespace WindowsHost
             _edgeTransitionService = new EdgeTransitionService(_inputCaptureService);
             _edgeTransitionService.StateChanged += EdgeTransitionService_StateChanged;
             _edgeTransitionService.UpdateOptions(_appSettings.EdgeTransition);
-            _edgeTransitionService.Start();
+            
+            _edgeHandoffService = new EdgeHandoffService(
+                _edgeTransitionService,
+                IsHandoffAvailable,
+                BeginAndroidHandoff,
+                PrepareCaptureAsync);
+
+            // V2 Initialization
+            _scrcpyEngine = new ScrcpyProcessManager();
+            _edgeHandoffService.AttachEngine(_scrcpyEngine);
+            _edgeHandoffService.Start();
+
+            _scrcpyEngine.StateChanged += (s, state) => Dispatcher.InvokeAsync(() => {
+                TxtEngineState.Text = state.ToString().ToUpper();
+                TxtEngineStatus.Text = state.ToString().ToUpper();
+
+                switch (state)
+                {
+                    case ScrcpyEngineState.Offline:
+                        BtnStartEngine.IsEnabled = true;
+                        BtnCaptureAndroid.IsEnabled = false;
+                        BtnReturnWindows.IsEnabled = false;
+                        TxtControlState.Text = "Windows";
+                        _engineTransport = "-";
+                        UpdateTransportDisplay();
+                        SafeReleaseInputOwnership("Offline");
+                        break;
+
+                    case ScrcpyEngineState.Starting:
+                        BtnStartEngine.IsEnabled = false;
+                        BtnCaptureAndroid.IsEnabled = false;
+                        BtnReturnWindows.IsEnabled = false;
+                        TxtControlState.Text = "Windows";
+                        UpdateTransportDisplay();
+                        break;
+
+                    case ScrcpyEngineState.Ready:
+                        BtnStartEngine.IsEnabled = false;
+                        BtnCaptureAndroid.IsEnabled = true;
+                        BtnReturnWindows.IsEnabled = false;
+                        TxtControlState.Text = "Windows";
+                        bool returningFromCapture = _pointerBeforeCapture.HasValue;
+                        SafeReleaseInputOwnership("Ready");
+                        if (UsesNativeScrcpyInput() && !returningFromCapture)
+                            (_scrcpyEngine as ScrcpyProcessManager)?.HideInputWindow();
+                        UpdateTransportDisplay();
+                        break;
+
+                    case ScrcpyEngineState.Captured:
+                        BtnStartEngine.IsEnabled = false;
+                        BtnCaptureAndroid.IsEnabled = false;
+                        BtnReturnWindows.IsEnabled = true;
+                        TxtControlState.Text = "Android";
+                        TakeInputOwnership();
+                        break;
+
+                    case ScrcpyEngineState.Error:
+                        BtnStartEngine.IsEnabled = true;
+                        BtnCaptureAndroid.IsEnabled = false;
+                        BtnReturnWindows.IsEnabled = false;
+                        TxtControlState.Text = "Windows";
+                        SafeReleaseInputOwnership("Error");
+                        UpdateTransportDisplay();
+                        break;
+                }
+                UpdateEngineBadge();
+            });
+
+            _scrcpyEngine.Error += (s, msg) => Dispatcher.InvokeAsync(() => {
+                Log($"[SCRCPY ERROR] {msg}");
+            });
 
             _sessionManager = new InputSessionManager(SendMessage);
             _sessionManager.SetState(InputSessionState.Disconnected);
@@ -98,6 +191,15 @@ namespace WindowsHost
                 }
             }
             
+            foreach (System.Windows.Controls.ComboBoxItem item in CmbConnectionMode.Items)
+            {
+                if (item.Tag.ToString() == _appSettings.ConnectionMode.ToString())
+                {
+                    CmbConnectionMode.SelectedItem = item;
+                    break;
+                }
+            }
+            
             _inputEventQueue = new ConcurrentQueue<InputEvent>();
             _debugLogLines = new List<string>();
             
@@ -106,22 +208,128 @@ namespace WindowsHost
             _inputDebugTimer.Tick += InputDebugTimer_Tick;
             _inputDebugTimer.Start();
 
-            ChkShowInputDebug.Checked += (s, e) => { TxtInputDebug.Visibility = Visibility.Visible; };
-            ChkShowInputDebug.Unchecked += (s, e) => { TxtInputDebug.Visibility = Visibility.Collapsed; };
+            _transportTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _transportTimer.Tick += async (_, _) =>
+            {
+                if (!_closing && IsAndroidCompanionConnected()) await StartEngineAsync();
+            };
+            _transportTimer.Start();
 
-            ChkEnableStreamingTest.Checked += (s, e) => { _sessionManager.EnableInputStreamingTest = true; };
-            ChkEnableStreamingTest.Unchecked += (s, e) => { _sessionManager.EnableInputStreamingTest = false; };
+            // Input debug UI removed; input debug disabled by default.
+            // _showInputDebug bool controls debug output if needed.
+
+            Loaded += (_, _) => {
+                TxtEngineState.Text = "WAITING APK";
+                TxtEngineStatus.Text = "WAITING APK";
+                BtnStartEngine.IsEnabled = false;
+                UpdateEngineBadge();
+                Log("Waiting for Connect in the Android app. Engine starts automatically after HELLO.");
+            };
+
         }
 
-        private void CmbTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void BtnThemeLight_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Light);
+
+        private void BtnThemeDark_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Dark);
+
+        private void SetTheme(AppTheme theme)
         {
-            if (CmbTheme.SelectedItem is System.Windows.Controls.ComboBoxItem selectedItem)
+            ThemeManager.SaveThemePreference(theme);
+            UpdateThemeButtons();
+        }
+
+        private void UpdateThemeButtons()
+        {
+            bool dark = ThemeManager.IsDarkTheme(ThemeManager.LoadThemePreference());
+            BtnThemeLight.Background = (Brush)FindResource(dark ? "SurfaceSoftBrush" : "BrandCoralSoftBrush");
+            BtnThemeLight.Foreground = (Brush)FindResource(dark ? "TextSecondaryBrush" : "BrandCoralBrush");
+            BtnThemeDark.Background = (Brush)FindResource(dark ? "BrandCoralSoftBrush" : "SurfaceSoftBrush");
+            BtnThemeDark.Foreground = (Brush)FindResource(dark ? "BrandCoralBrush" : "TextSecondaryBrush");
+            UpdateEngineBadge();
+        }
+
+        private void UpdateEngineBadge()
+        {
+            TxtEngineState.Foreground = (Brush)FindResource(
+                TxtEngineState.Text.Equals("READY", StringComparison.OrdinalIgnoreCase)
+                    ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+        }
+
+        private void BtnAdvanced_Click(object sender, RoutedEventArgs e)
+        {
+            if (AdvancedPanel.Visibility == Visibility.Visible)
             {
-                if (Enum.TryParse(selectedItem.Tag.ToString(), out AppTheme theme))
+                AdvancedPanel.Visibility = Visibility.Collapsed;
+                if (_heightBeforeAdvanced > 0)
                 {
-                    ThemeManager.SaveThemePreference(theme);
+                    Height = _heightBeforeAdvanced;
+                    Top = _topBeforeAdvanced;
                 }
             }
+            else
+            {
+                _heightBeforeAdvanced = Height;
+                _topBeforeAdvanced = Top;
+                AdvancedPanel.Visibility = Visibility.Visible;
+                var workArea = SystemParameters.WorkArea;
+                Height = Math.Min(workArea.Height - 20, Math.Max(Height + 330, 950));
+                Top = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - Height));
+            }
+        }
+
+        private void Header_DragMove(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+                DragMove();
+        }
+
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void InitializeTrayIcon()
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControl152D4D.ico");
+            var menu = new WinForms.ContextMenuStrip();
+            menu.Items.Add("Restore", null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
+            menu.Items.Add("Exit", null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
+            _trayIcon = new WinForms.NotifyIcon
+            {
+                Icon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : Drawing.SystemIcons.Application,
+                Text = "EZ Across Control",
+                ContextMenuStrip = menu,
+                Visible = true
+            };
+            _trayIcon.DoubleClick += (_, _) => Dispatcher.BeginInvoke(RestoreFromTray);
+        }
+
+        private void RestoreFromTray()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
+        private void ExitFromTray()
+        {
+            _exitRequested = true;
+            Close();
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            if (!_exitRequested)
+            {
+                e.Cancel = true;
+                Hide();
+                if (!_trayHintShown && _trayIcon != null)
+                {
+                    _trayHintShown = true;
+                    _trayIcon.ShowBalloonTip(2500, "EZ Across Control", "Running in the background. Double-click the tray icon to restore.", WinForms.ToolTipIcon.Info);
+                }
+                return;
+            }
+            base.OnClosing(e);
         }
 
         private string GetLocalIPAddress()
@@ -182,14 +390,14 @@ namespace WindowsHost
                 TxtServerStatus.Text = "Error";
                 Log($"[SERVER] Error: Access Denied (HTTP 400 cause). You MUST run EZ Across Control as Administrator to listen on LAN IP.");
                 MessageBox.Show("Please restart the application as Administrator to accept LAN connections.", "Administrator Required");
-                _listener.Close();
+                _listener?.Close();
                 _listener = null;
             }
             catch (Exception ex)
             {
                 TxtServerStatus.Text = "Error";
                 Log($"[SERVER] Error starting server: {ex.Message}");
-                _listener.Close();
+                _listener?.Close();
                 _listener = null;
             }
         }
@@ -263,7 +471,9 @@ namespace WindowsHost
                 }
 
                 _currentSocket = wsContext.WebSocket;
-                Dispatcher.Invoke(() => TxtAndroidStatus.Text = "Connected");
+                _companionAddress = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
+                _androidHandshakeComplete = false;
+                // Dispatcher.Invoke(() => TxtAndroidStatus.Text = "Connected");
                 _sessionManager.SetState(InputSessionState.Connected);
 
                 await ReceiveLoopAsync(_currentSocket);
@@ -299,16 +509,30 @@ namespace WindowsHost
             }
             finally
             {
-                Dispatcher.Invoke(() => {
-                    TxtAndroidStatus.Text = "Disconnected";
-                    TxtDeviceName.Text = "-";
-                });
-                _sessionManager.SetState(InputSessionState.Disconnected);
+                if (ReferenceEquals(socket, _currentSocket))
+                {
+                    _currentSocket = null;
+                    _androidHandshakeComplete = false;
+
+                    if (_scrcpyEngine.IsCaptured)
+                    {
+                        Log("Android companion disconnected. Returning control to Windows.");
+                        await _scrcpyEngine.ReleaseAsync();
+                    }
+
+                    Dispatcher.Invoke(() => {
+                        if (_currentSocket != null) return;
+                        TxtDeviceName.Text = "-";
+                        UpdateTransportDisplay();
+                        _sessionManager.SetState(InputSessionState.Disconnected);
+                    });
+                }
             }
         }
 
         private void HandleMessage(string json, WebSocket socket)
         {
+            if (!ReferenceEquals(socket, _currentSocket)) return;
             try
             {
                 using var doc = JsonDocument.Parse(json);
@@ -319,8 +543,13 @@ namespace WindowsHost
                 {
                     int clientVersion = doc.RootElement.TryGetProperty("ProtocolVersion", out var pv) ? pv.GetInt32() : 0;
                     var deviceName = payload.GetProperty("DeviceName").GetString();
+                    _companionDeviceName = deviceName;
                     Dispatcher.Invoke(() => TxtDeviceName.Text = deviceName);
                     Log($"Received HELLO from {deviceName} (v{clientVersion})");
+
+                    _androidHandshakeComplete = true;
+                    Dispatcher.InvokeAsync(UpdateTransportDisplay);
+                    Dispatcher.InvokeAsync(async () => await StartEngineAsync());
 
                     if (clientVersion != 1)
                     {
@@ -346,15 +575,96 @@ namespace WindowsHost
                     };
                     SendMessage(socket, JsonSerializer.Serialize(pongEnv));
                 }
+                else if (type == "RETURN_TO_WINDOWS")
+                {
+                    if (!ReferenceEquals(socket, _currentSocket) || !IsAndroidCompanionConnected()) return;
+                    var returnPayload = payload.Clone(); // Dispatcher runs after JsonDocument is disposed.
+                    if (returnPayload.TryGetProperty("SessionId", out var returnSession)
+                        && returnSession.GetInt32() != _currentSessionId) return;
+                    Log("Received RETURN_TO_WINDOWS from Android. Releasing Scrcpy capture.");
+                    Dispatcher.Invoke(async () => {
+                        // Native button input is sent by scrcpy, not the APK.
+                        // A delayed edge request must never terminate a drag.
+                        if (NativeMethods.IsMouseButtonPressed())
+                        {
+                            Log("Android edge return ignored: mouse button is held; native capture remains active.");
+                            return;
+                        }
+                        if (returnPayload.TryGetProperty("SessionId", out var session)
+                            && session.GetInt32() != _currentSessionId) return;
+                        if (_scrcpyEngine != null && _scrcpyEngine.IsCaptured)
+                        {
+                            await _scrcpyEngine.ReleaseAsync();
+                            SafeReleaseInputOwnership("Android edge");
+
+                            // Re-arm guard
+                            (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
+                        }
+                    });
+                }
                 else if (type == "INPUT_HANDOFF_END")
                 {
                     Log("Received INPUT_HANDOFF_END from Android. Returning control.");
-                    Dispatcher.Invoke(() => SafeReleaseInputOwnership("Normal"));
+                    Dispatcher.InvokeAsync(async () => await _scrcpyEngine.ReleaseAsync());
                 }
             }
             catch (Exception ex)
             {
                 Log($"Message parse error: {ex.Message}");
+            }
+        }
+
+        private void PositionMouseOnReturn(string returnEdgeStr)
+        {
+            try
+            {
+                if (!NativeMethods.GetCursorPos(out var currentPt) && !_pointerBeforeCapture.HasValue)
+                    return;
+                currentPt = _pointerBeforeCapture ?? currentPt;
+
+                var mg = new MonitorGeometry();
+                var monitor = mg.GetMonitorFromPoint(currentPt.x, currentPt.y);
+                if (monitor == null)
+                {
+                    var all = mg.GetAllMonitors();
+                    monitor = all.FirstOrDefault(m => m.IsPrimary) ?? all.FirstOrDefault();
+                }
+                if (monitor == null) return;
+
+                int inset = Math.Max(16, _appSettings.EdgeTransition.EdgeThresholdPixels + 4);
+                int x = 0;
+                int y = currentPt.y;
+
+                switch (returnEdgeStr)
+                {
+                    case "Right":
+                        x = monitor.Bounds.right - inset - 1;
+                        break;
+                    case "Left":
+                        x = monitor.Bounds.left + inset;
+                        break;
+                    case "Top":
+                        x = currentPt.x;
+                        y = monitor.Bounds.top + inset;
+                        break;
+                    case "Bottom":
+                        x = currentPt.x;
+                        y = monitor.Bounds.bottom - inset - 1;
+                        break;
+                    default:
+                        // A manual capture may not have a configured edge. Return to
+                        // the Windows position saved before scrcpy took the mouse.
+                        x = currentPt.x;
+                        y = currentPt.y;
+                        break;
+                }
+
+                NativeMethods.SetCursorPos(x, y);
+                Log($"Return cursor: edge={returnEdgeStr}, Windows=({currentPt.x},{currentPt.y}), target=({x},{y})");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex, "PositionMouseOnReturn");
             }
         }
 
@@ -435,7 +745,7 @@ namespace WindowsHost
                 BtnStart.IsEnabled = true;
                 BtnStop.IsEnabled = false;
                 TxtPort.IsEnabled = true;
-                TxtAndroidStatus.Text = "Disconnected";
+                // TxtAndroidStatus.Text = "Disconnected";
                 TxtDeviceName.Text = "-";
                 Log("Server stopped.");
             }
@@ -443,7 +753,25 @@ namespace WindowsHost
 
         protected override void OnClosed(EventArgs e)
         {
+            _closing = true;
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+                _trayIcon.ContextMenuStrip?.Dispose();
+                _trayIcon.Dispose();
+                _trayIcon = null;
+            }
+            _transportTimer.Stop();
             SafeReleaseInputOwnership("App closed");
+
+            try
+            {
+                Task.Run(() => _scrcpyEngine.StopAsync()).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex, "Stop scrcpy engine on app close");
+            }
             
             _edgeTransitionService?.Stop();
             _inputCaptureService?.StopCapture();
@@ -463,28 +791,23 @@ namespace WindowsHost
         {
             if (e is KeyboardInputEvent ke && ke.Type == InputEventType.KeyDown && ke.KeyName == "Escape")
             {
-                if (_ownershipState == PointerOwnershipState.Remote)
+                if (_scrcpyEngine != null && _scrcpyEngine.IsRunning && _scrcpyEngine.IsCaptured)
                 {
                     Log("ESC pressed - Emergency return to Windows");
+                    _ = _scrcpyEngine.ReleaseAsync();
+                    return;
+                }
+                else if (_ownershipState == PointerOwnershipState.Remote)
+                {
+                    Log("ESC pressed - Emergency return to Windows (Legacy)");
                     SafeReleaseInputOwnership("Emergency");
                     return;
                 }
             }
 
-            if (_uhidBackend != null && _uhidBackend.IsActive)
-            {
-                // We ignore MouseMove here because it is handled by RawMouseInputService
-                if (!(e is MouseInputEvent me && me.Type == InputEventType.MouseMove))
-                {
-                    RouteToUhidBackend(e);
-                }
-            }
-            else
-            {
-                _sessionManager?.EnqueueInput(e);
-            }
+            _sessionManager?.EnqueueInput(e);
 
-            if (ChkShowInputDebug.IsChecked == true)
+            if (_showInputDebug)
             {
                 _inputEventQueue.Enqueue(e);
             }
@@ -499,19 +822,32 @@ namespace WindowsHost
 
             if (_ownershipState == PointerOwnershipState.Remote)
             {
-                if (_uhidBackend != null && _uhidBackend.IsActive)
-                {
-                    RouteToUhidBackend(e);
-                }
-                else
-                {
-                    _sessionManager?.EnqueueInput(e);
-                }
+                _sessionManager?.EnqueueInput(e);
                 
-                if (ChkShowInputDebug.IsChecked == true)
+                if (_showInputDebug)
                 {
                     _inputEventQueue.Enqueue(e);
                 }
+            }
+        }
+
+        private void TakeInputOwnership()
+        {
+            if (_ownershipState == PointerOwnershipState.Remote) return;
+
+            _ownershipState = PointerOwnershipState.Remote;
+
+            if (UsesNativeScrcpyInput())
+            {
+                _sessionManager?.SetState(InputSessionState.Idle);
+                Log($"Captured control to Android through native {_engineTransport} scrcpy input.");
+            }
+            else if (_inputCaptureService is WindowsInputCaptureService wic)
+            {
+                wic.SuppressLocalMouseEvents = true;
+                wic.SuppressLocalKeyboardEvents = true;
+                _sessionManager?.SetState(InputSessionState.Controlling);
+                Log("Captured control to Android through the companion app.");
             }
         }
 
@@ -519,7 +855,7 @@ namespace WindowsHost
         {
             try
             {
-                if (_ownershipState != PointerOwnershipState.Remote) return;
+                if (_ownershipState != PointerOwnershipState.Remote && !_pointerBeforeCapture.HasValue) return;
 
                 _ownershipState = PointerOwnershipState.Local;
                 
@@ -538,6 +874,16 @@ namespace WindowsHost
                 }
 
                 _sessionManager?.SetState(InputSessionState.Idle);
+
+                (_scrcpyEngine as ScrcpyProcessManager)?.HideInputWindow();
+
+                if (_windowToRestoreAfterNativeCapture != IntPtr.Zero)
+                {
+                    NativeMethods.ActivateWindow(_windowToRestoreAfterNativeCapture);
+                    _windowToRestoreAfterNativeCapture = IntPtr.Zero;
+                }
+                PositionMouseOnReturn(_edgeBeforeCapture.ToString());
+                _pointerBeforeCapture = null;
                 
                 if (_currentSocket != null && _currentSocket.State == WebSocketState.Open)
                 {
@@ -545,6 +891,7 @@ namespace WindowsHost
                 }
                 
                 Log($"Returned control to Windows. Reason: {reason}");
+                (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
             }
             catch (Exception ex)
             {
@@ -554,7 +901,7 @@ namespace WindowsHost
 
         private void InputDebugTimer_Tick(object? sender, EventArgs e)
         {
-            if (ChkShowInputDebug.IsChecked != true) 
+            if (!_showInputDebug) 
             {
                 // Discard items if debug is off but somehow queued
                 while (_inputEventQueue.TryDequeue(out _)) { }
@@ -584,233 +931,237 @@ namespace WindowsHost
             }
         }
 
-        private void BtnStartCapture_Click(object sender, RoutedEventArgs e)
+        private async void BtnStartEngine_Click(object sender, RoutedEventArgs e)
         {
-            _inputCaptureService.StartCapture();
-            TxtCaptureStatus.Text = "Capturing";
-            BtnStartCapture.IsEnabled = false;
-            BtnStopCapture.IsEnabled = true;
+            await StartEngineAsync();
         }
 
-        private void BtnStopCapture_Click(object sender, RoutedEventArgs e)
-        {
-            _inputCaptureService.StopCapture();
-            TxtCaptureStatus.Text = "Idle";
-            BtnStartCapture.IsEnabled = true;
-            BtnStopCapture.IsEnabled = false;
-        }
+        private bool _engineStartPending;
 
-        private async void BtnStartUHID_Click(object sender, RoutedEventArgs e)
+        private async Task StartEngineAsync()
         {
+            if (!IsAndroidCompanionConnected())
+            {
+                Log("Waiting for Connect in the Android app.");
+                return;
+            }
+            if (_closing || _engineStartPending) return;
+            _engineStartPending = true;
             try
             {
-                BtnStartUHID.IsEnabled = false;
-                _uhidBackend = new UhidDirectBackend("123456");
-                string ip = TxtLocalIP.Text;
-                if (TxtAndroidStatus.Text == "Connected") 
-                {
-                    // For now use a hardcoded test IP or something? 
-                    // Actually, ADB reverse or direct LAN to Android device IP is needed.
-                    // Let's assume the user has forwarded port 8797 via adb, so we connect to localhost.
-                    ip = "127.0.0.1";
-                }
-                else
-                {
-                    ip = "127.0.0.1";
-                }
-                
-                await _uhidBackend.ConnectAsync(ip);
-                _uhidBackend.SetRemoteControl(true);
-                
-                // Start capturing
-                _inputCaptureService.SuppressLocalMouseEvents = true;
-                _inputCaptureService.SuppressLocalKeyboardEvents = true;
-                _inputCaptureService.StartCapture();
-                
-                _ownershipState = PointerOwnershipState.Remote;
-
-                TxtCaptureStatus.Text = "UHID Active";
-                BtnStopUHID.IsEnabled = true;
-                Log("Started UHID Direct Test (Localhost 8797)");
-            }
-            catch (Exception ex)
+            if (_deviceManager == null) _deviceManager = new AndroidDeviceManager();
+            var devices = await _deviceManager.GetDevicesAsync();
+            var mode = _appSettings.ConnectionMode;
+            bool needsWireless = mode == ConnectionMode.Network
+                || (mode == ConnectionMode.Auto
+                    && AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
+                        _companionDeviceName, _companionAddress) == null);
+            if (needsWireless && AndroidDeviceManager.FindCompanionDevice(devices,
+                ConnectionMode.Network, _companionDeviceName, _companionAddress) == null)
             {
-                Log($"Failed to start UHID test: {ex.Message}");
-                BtnStartUHID.IsEnabled = true;
-                if (_uhidBackend != null)
-                {
-                    _uhidBackend.Dispose();
-                    _uhidBackend = null;
-                }
+                Log("Looking for the paired Wi-Fi ADB connection...");
+                var usb = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
+                    _companionDeviceName, _companionAddress);
+                await _deviceManager.DiscoverNetworkAsync(_companionAddress, usb);
+                devices = await _deviceManager.GetDevicesAsync();
             }
-        }
+            var device = AndroidDeviceManager.FindCompanionDevice(devices, mode,
+                _companionDeviceName, _companionAddress);
+            if (_closing || !IsAndroidCompanionConnected()) return;
+            _activeDevice = device;
 
-        private void BtnStopUHID_Click(object sender, RoutedEventArgs e)
-        {
-            if (_uhidBackend != null)
+            string? selectedSerial = device?.GetSerial(mode);
+            var manager = _scrcpyEngine as ScrcpyProcessManager;
+            if (_scrcpyEngine.IsRunning && manager?.ActiveSerial == selectedSerial)
             {
-                _uhidBackend.Dispose();
-                _uhidBackend = null;
+                UpdateTransportDisplay();
+                return;
+            }
+            if (_scrcpyEngine.IsRunning)
+            {
+                Log($"Applying connection mode: {mode}. Previous transport: {_engineTransport}.");
+                await _scrcpyEngine.StopAsync();
+                SafeReleaseInputOwnership("Transport changed or disconnected");
             }
             
-            _inputCaptureService.SuppressLocalMouseEvents = false;
-            _inputCaptureService.SuppressLocalKeyboardEvents = false;
-            _inputCaptureService.StopCapture();
-            _ownershipState = PointerOwnershipState.Local;
-            
-            TxtCaptureStatus.Text = "Idle";
-            BtnStartUHID.IsEnabled = true;
-            BtnStopUHID.IsEnabled = false;
-            Log("Stopped UHID Direct Test");
-        }
-
-        private List<byte> _pressedHidKeys = new List<byte>();
-        private byte _currentMouseMask = 0;
-
-        private void RouteToUhidBackend(InputEvent e)
-        {
-            if (e is MouseInputEvent me)
+            if (device != null)
             {
-                if (me.Type == InputEventType.MouseMove)
-                {
-                    _uhidBackend.SendMouseMove((short)me.DeltaX, (short)me.DeltaY);
-                }
-                else if (me.Type == InputEventType.MouseWheel || me.Type == InputEventType.HorizontalWheel)
-                {
-                    sbyte wv = me.Type == InputEventType.MouseWheel ? (sbyte)Math.Clamp(me.WheelDelta / 120, -127, 127) : (sbyte)0;
-                    sbyte wh = me.Type == InputEventType.HorizontalWheel ? (sbyte)Math.Clamp(me.WheelDelta / 120, -127, 127) : (sbyte)0;
-                    _uhidBackend.SendMouseWheel(wv, wh);
-                }
-                else if (me.Type.ToString().Contains("Button"))
-                {
-                    if (me.Type == InputEventType.LeftButtonDown) _currentMouseMask |= 1;
-                    if (me.Type == InputEventType.LeftButtonUp) _currentMouseMask &= 0xFE;
-                    if (me.Type == InputEventType.RightButtonDown) _currentMouseMask |= 2;
-                    if (me.Type == InputEventType.RightButtonUp) _currentMouseMask &= 0xFD;
-                    if (me.Type == InputEventType.MiddleButtonDown) _currentMouseMask |= 4;
-                    if (me.Type == InputEventType.MiddleButtonUp) _currentMouseMask &= 0xFB;
-                    
-                    _uhidBackend.SendMouseButton(_currentMouseMask);
-                }
+                TxtDeviceName.Text = device.Model ?? "Unknown Device";
+                UpdateTransportDisplay();
             }
-            else if (e is KeyboardInputEvent ke)
+            else
             {
-                byte modifiers = 0;
-                if (ke.CtrlPressed) modifiers |= 0x01; // Left Ctrl
-                if (ke.ShiftPressed) modifiers |= 0x02; // Left Shift
-                if (ke.AltPressed) modifiers |= 0x04; // Left Alt
-                if (ke.WinPressed) modifiers |= 0x08; // Left GUI
-
-                byte hidCode = HidKeyMapper.GetHidUsageId(ke.VirtualKeyCode);
-
-                if (ke.Type == InputEventType.KeyDown)
-                {
-                    if (hidCode > 0 && !_pressedHidKeys.Contains(hidCode))
-                    {
-                        _pressedHidKeys.Add(hidCode);
-                    }
-                }
-                else if (ke.Type == InputEventType.KeyUp)
-                {
-                    if (hidCode > 0)
-                    {
-                        _pressedHidKeys.Remove(hidCode);
-                    }
-                }
-
-                // Send up to 6 keys
-                byte[] keys = new byte[6];
-                for (int i = 0; i < Math.Min(6, _pressedHidKeys.Count); i++)
-                {
-                    keys[i] = _pressedHidKeys[i];
-                }
-
-                _uhidBackend.SendKeyboardReport(modifiers, keys);
-            }
-        }
-
-        private void EdgeTransitionService_StateChanged(object sender, EdgeTransitionEventArgs e)
-        {
-            if (e.State == EdgeTransitionState.Idle)
-            {
-                if (_sessionManager?.State == InputSessionState.HandoffArmed)
-                {
-                    _sessionManager.SetState(InputSessionState.Idle);
-                    _sessionManager.EnqueueHandoff("INPUT_HANDOFF_CANCEL", new { });
-                }
-            }
-            else if (e.State == EdgeTransitionState.Armed)
-            {
-                if (_sessionManager?.State != InputSessionState.HandoffArmed && _sessionManager?.State != InputSessionState.Controlling)
-                {
-                    _currentSessionId++;
-                    _sessionManager?.SetState(InputSessionState.HandoffArmed);
-                    long candidateEnterTimestamp = (_edgeTransitionService as EdgeTransitionService)?.GetCandidateEnterTimestamp() ?? Stopwatch.GetTimestamp();
-                    _sessionManager?.EnqueueHandoff("INPUT_HANDOFF_BEGIN", new HandoffBeginPayload
-                    {
-                        Edge = e.Edge.ToString(),
-                        SessionId = _currentSessionId,
-                        EntryNormalizedY = 0.5,
-                        ClientTxTimestamp = candidateEnterTimestamp
-                    });
-                    
-                    double latencyMs = (Stopwatch.GetTimestamp() - candidateEnterTimestamp) / (double)Stopwatch.Frequency * 1000.0;
-                    Dispatcher.InvokeAsync(() =>
-                    {
-                        Log($"[LATENCY] Handoff Candidate->Armed latency: {latencyMs:F2}ms");
-                    });
-                    
-                    StartRemoteControl();
-                }
+                TxtDeviceName.Text = "No Device Found";
+                _engineTransport = "-";
+                UpdateTransportDisplay();
+                if (_lastUnavailableMode != mode.ToString()) Log(mode == ConnectionMode.Network
+                    ? "Wi-Fi control unavailable: enable paired Wireless debugging on Android, then reconnect the APK. Connecting the APK alone does not establish Wi-Fi ADB."
+                    : mode == ConnectionMode.Usb
+                        ? "USB control unavailable: connect the authorized USB cable. Wi-Fi is not used in USB mode."
+                        : "Automatic engine start: no matching ADB device found. Check the cable or paired Wireless debugging.");
+                _lastUnavailableMode = mode.ToString();
+                BtnStartEngine.IsEnabled = true;
+                TxtEngineState.Text = "NO DEVICE";
+                TxtEngineStatus.Text = "NO DEVICE";
+                UpdateEngineBadge();
+                return;
             }
             
+            _lastUnavailableMode = null;
+            TxtEngineState.Text = "STARTING...";
+            UpdateEngineBadge();
+            BtnStartEngine.IsEnabled = false;
+            await _scrcpyEngine.StartAsync(mode, device);
+            UpdateTransportDisplay();
+            Log($"Connection mode: {mode}. Active transport: {_engineTransport}. Engine: {_scrcpyEngine.State}.");
+            }
+            catch (Exception ex) { Log($"Engine start failed: {ex.Message}"); }
+            finally { _engineStartPending = false; }
+        }
+
+        private async void BtnCaptureAndroid_Click(object sender, RoutedEventArgs e)
+        {
+            if (!IsHandoffAvailable())
+            {
+                Log("Capture ignored: press Connect in the Android companion app first.");
+                return;
+            }
+
+            if (!await PrepareCaptureAsync()) return;
+            BeginAndroidHandoff(new EdgeTransitionEventArgs(EdgeState.Armed, _appSettings.EdgeTransition.ActiveEdge));
+            await _scrcpyEngine.CaptureAsync();
+        }
+
+        private async void BtnReturnWindows_Click(object sender, RoutedEventArgs e)
+        {
+            await _scrcpyEngine.ReleaseAsync();
+        }
+
+        private bool IsAndroidCompanionConnected()
+        {
+            return _androidHandshakeComplete && _currentSocket?.State == WebSocketState.Open;
+        }
+
+        private void UpdateTransportDisplay()
+        {
+            _engineTransport = _scrcpyEngine.IsRunning
+                ? ((_scrcpyEngine as ScrcpyProcessManager)?.ActiveTransport == ConnectionMode.Network ? "Wi-Fi" : "USB")
+                : "-";
+            TxtTransport.Text = _engineTransport;
+            BtnCaptureAndroid.IsEnabled = IsAndroidCompanionConnected()
+                && _scrcpyEngine.State == ScrcpyEngineState.Ready;
+        }
+
+        private bool UsesNativeScrcpyInput()
+        {
+            return _scrcpyEngine.IsRunning; // UHID input is identical over USB and Wi-Fi ADB.
+        }
+
+        private bool IsHandoffAvailable()
+        {
+            return IsAndroidCompanionConnected() && _scrcpyEngine.IsRunning;
+        }
+
+        private bool ParkNativeInputAtEdge(NativeMethods.POINT entryPointer)
+        {
+            var monitor = new MonitorGeometry().GetMonitorFromPoint(entryPointer.x, entryPointer.y);
+            if (monitor == null) return false;
+
+            int x = Math.Clamp(entryPointer.x, monitor.Bounds.left, monitor.Bounds.right - 1);
+            int y = Math.Clamp(entryPointer.y, monitor.Bounds.top, monitor.Bounds.bottom - 1);
+            switch (_edgeBeforeCapture)
+            {
+                case ScreenEdge.Right: x = monitor.Bounds.right - 1; break;
+                case ScreenEdge.Left: x = monitor.Bounds.left; break;
+                case ScreenEdge.Top: y = monitor.Bounds.top; break;
+                case ScreenEdge.Bottom: y = monitor.Bounds.bottom - 1; break;
+            }
+
+            return (_scrcpyEngine as ScrcpyProcessManager)?.ParkInputWindowAt(x, y) == true;
+        }
+
+        private async Task<bool> PrepareCaptureAsync()
+        {
+            if (!Dispatcher.CheckAccess())
+                return await Dispatcher.InvokeAsync(PrepareCaptureAsync).Task.Unwrap();
+            if (!IsHandoffAvailable() || _scrcpyEngine.IsCaptured) return false;
+            if (!UsesNativeScrcpyInput()) return true;
+            _windowToRestoreAfterNativeCapture = NativeMethods.GetForegroundWindow();
+            NativeMethods.GetCursorPos(out var entryPointer);
+            _pointerBeforeCapture = entryPointer;
+            _edgeBeforeCapture = _appSettings.EdgeTransition.ActiveEdge;
+            bool focused = ParkNativeInputAtEdge(entryPointer)
+                && (_scrcpyEngine as ScrcpyProcessManager)?.ActivateInputWindow() == true;
+            if (!focused)
+            {
+                _windowToRestoreAfterNativeCapture = IntPtr.Zero;
+                _pointerBeforeCapture = null;
+                (_scrcpyEngine as ScrcpyProcessManager)?.HideInputWindow();
+                NativeMethods.SetCursorPos(entryPointer.x, entryPointer.y);
+                Log("Capture cancelled: Windows did not place and activate the scrcpy input window.");
+                (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
+            }
+            return focused;
+        }
+
+        private void BeginAndroidHandoff(EdgeTransitionEventArgs handoff)
+        {
+            if (!IsAndroidCompanionConnected()) return;
+
+            _currentSessionId++;
+            _sessionManager.EnqueueHandoff("INPUT_HANDOFF_BEGIN", new HandoffBeginPayload
+            {
+                Edge = handoff.Edge.ToString(),
+                SessionId = _currentSessionId,
+                EntryNormalizedY = 0.5,
+                ClientTxTimestamp = Stopwatch.GetTimestamp()
+            });
+            Log(UsesNativeScrcpyInput()
+                ? $"Native {_engineTransport} capture started. Android return edge armed. Edge={handoff.Edge}, Session={_currentSessionId}"
+                : $"Beginning Android handoff. Edge={handoff.Edge}, Session={_currentSessionId}");
+        }
+
+        // Legacy Uhid routing removed for V2
+        private void EdgeTransitionService_StateChanged(object? sender, EdgeTransitionEventArgs e)
+        {
             Dispatcher.InvokeAsync(() =>
             {
                 switch (e.State)
                 {
-                    case EdgeTransitionState.Idle: TxtEdgeStatus.Text = "Waiting"; break;
-                    case EdgeTransitionState.Candidate: TxtEdgeStatus.Text = "Edge detected"; break;
-                    case EdgeTransitionState.Armed: TxtEdgeStatus.Text = "Ready to switch"; break;
-                    case EdgeTransitionState.Disabled:
-                    case EdgeTransitionState.Cancelled:
+                    case EdgeState.Idle: TxtEdgeStatus.Text = "Waiting"; break;
+                    case EdgeState.Candidate: TxtEdgeStatus.Text = "Edge Detected"; break;
+                    case EdgeState.Armed: TxtEdgeStatus.Text = "Ready To Switch"; break;
+                    case EdgeState.Disabled:
+                    case EdgeState.Cancelled:
                         TxtEdgeStatus.Text = e.State.ToString();
                         break;
-                }
-
-                if (ChkShowInputDebug.IsChecked == true)
-                {
-                    _debugLogLines.Add($"Edge {e.State}: {e.Edge}");
-                    TxtInputDebug.Text = string.Join(Environment.NewLine, _debugLogLines);
-                    TxtInputDebug.ScrollToEnd();
                 }
             });
         }
 
-        private void StartRemoteControl()
+        private async void CmbConnectionMode_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (_ownershipState == PointerOwnershipState.Remote) return;
+            if (_appSettings == null) return;
             
-            _ownershipState = PointerOwnershipState.Remote;
-            _sessionManager?.SetState(InputSessionState.Controlling);
-            
-            if (_inputCaptureService is WindowsInputCaptureService wic)
+            if (CmbConnectionMode.SelectedItem is System.Windows.Controls.ComboBoxItem item)
             {
-                wic.SuppressLocalMouseEvents = true;
-                wic.SuppressLocalKeyboardEvents = true;
+                if (Enum.TryParse(item.Tag.ToString(), out ConnectionMode mode))
+                {
+                    if (_appSettings.ConnectionMode == mode) return;
+                    _appSettings.ConnectionMode = mode;
+                    ConfigManager.Save(_appSettings);
+                    if (_scrcpyEngine != null && IsAndroidCompanionConnected())
+                    {
+                        CmbConnectionMode.IsEnabled = false;
+                        try
+                        {
+                            await StartEngineAsync();
+                        }
+                        catch (Exception ex) { Log($"Transport switch failed: {ex.Message}"); }
+                        finally { CmbConnectionMode.IsEnabled = true; }
+                    }
+                }
             }
-            
-            _rawMouseInputService?.StartCapture();
-            
-            NativeMethods.GetCursorPos(out var cursorPos);
-            var rect = new NativeMethods.RECT { left = cursorPos.x, top = cursorPos.y, right = cursorPos.x + 2, bottom = cursorPos.y + 2 };
-            NativeMethods.ClipCursor(ref rect);
-            _isCursorClipped = true;
-            
-            // Focus the hidden IME sink to ensure WPF captures keyboard input for IME composition
-            this.Activate();
-            HiddenImeSink.Focus();
-
-            Log("Started remote control.");
         }
 
         private void CmbActiveEdge_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

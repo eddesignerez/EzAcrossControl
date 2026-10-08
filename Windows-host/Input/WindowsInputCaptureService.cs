@@ -34,12 +34,15 @@ namespace WindowsHost.Input
             if (IsCapturing) return;
 
             using (Process curProcess = Process.GetCurrentProcess())
-            using (ProcessModule curModule = curProcess.MainModule)
+            using (ProcessModule? curModule = curProcess.MainModule)
             {
-                IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule.ModuleName);
+                if (curModule?.ModuleName != null)
+                {
+                    IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule.ModuleName);
 
-                _mouseHookID = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
-                _keyboardHookID = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _keyboardProc, moduleHandle, 0);
+                    _mouseHookID = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
+                    _keyboardHookID = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL, _keyboardProc, moduleHandle, 0);
+                }
             }
 
             IsCapturing = true;
