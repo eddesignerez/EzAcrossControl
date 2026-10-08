@@ -32,6 +32,8 @@ namespace WindowsHost
     public partial class MainWindow : Window
     {
         private HttpListener? _listener;
+        private volatile bool _controlPaused;
+        private readonly SemaphoreSlim _readinessGate = new(1, 1);
         private CancellationTokenSource? _cts;
         private WebSocket? _currentSocket;
         
@@ -425,6 +427,12 @@ namespace WindowsHost
                 try
                 {
                     var context = await _listener.GetContextAsync();
+
+                    if (!context.Request.IsWebSocketRequest && context.Request.Url?.AbsolutePath == "/readiness")
+                    {
+                        ProcessRequest(context);
+                        continue;
+                    }
                     
                     Log($"--- HTTP Request ---");
                     Log($"Method: {context.Request.HttpMethod}");
@@ -465,6 +473,31 @@ namespace WindowsHost
         {
             try
             {
+                if (!context.Request.IsWebSocketRequest)
+                {
+                    if (context.Request.HttpMethod != "GET" || context.Request.Url?.AbsolutePath != "/readiness")
+                    { context.Response.StatusCode = 404; context.Response.Close(); return; }
+                    var name = context.Request.QueryString["device"];
+                    if (string.IsNullOrWhiteSpace(name) || name.Length > 128)
+                    { context.Response.StatusCode = 400; context.Response.Close(); return; }
+                    if (!await _readinessGate.WaitAsync(0))
+                    { context.Response.StatusCode = 503; context.Response.Close(); return; }
+                    try
+                    {
+                        var address = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
+                        var devices = await new AndroidDeviceManager().GetDevicesAsync();
+                        var result = new {
+                            UsbReady = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb, name, address) != null,
+                            WifiReady = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Network, name, address) != null
+                        };
+                        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(result));
+                        context.Response.ContentType = "application/json";
+                        context.Response.Headers["Cache-Control"] = "no-store";
+                        await context.Response.OutputStream.WriteAsync(bytes);
+                    }
+                    finally { _readinessGate.Release(); context.Response.Close(); }
+                    return;
+                }
                 var wsContext = await context.AcceptWebSocketAsync(null);
                 Log("Client connected.");
                 
@@ -551,6 +584,18 @@ namespace WindowsHost
                     Dispatcher.Invoke(() => TxtDeviceName.Text = deviceName);
                     Log($"Received HELLO from {deviceName} (v{clientVersion})");
 
+                    _controlPaused = false;
+                    if (payload.TryGetProperty("ConnectionMode", out var requestedMode))
+                    {
+                        var mode = requestedMode.GetString() switch {
+                            "USB" => ConnectionMode.Usb, "Wi-Fi" => ConnectionMode.Network,
+                            "Auto" => ConnectionMode.Auto, _ => _appSettings.ConnectionMode
+                        };
+                        Dispatcher.Invoke(() => {
+                            _appSettings.ConnectionMode = mode;
+                            CmbConnectionMode.SelectedIndex = (int)mode;
+                        });
+                    }
                     _androidHandshakeComplete = true;
                     _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
@@ -605,6 +650,16 @@ namespace WindowsHost
                             // Re-arm guard
                             (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
                         }
+                    });
+                }
+                else if (type == "CONTROL_STOP")
+                {
+                    if (!ReferenceEquals(socket, _currentSocket) || !IsAndroidCompanionConnected()) return;
+                    _controlPaused = true;
+                    Dispatcher.InvokeAsync(async () => {
+                        await _scrcpyEngine.ReleaseAsync();
+                        SafeReleaseInputOwnership("Android Stop Control");
+                        UpdateTransportDisplay();
                     });
                 }
                 else if (type == "INPUT_HANDOFF_END")
@@ -957,10 +1012,7 @@ namespace WindowsHost
             if (_deviceManager == null) _deviceManager = new AndroidDeviceManager();
             var devices = await _deviceManager.GetDevicesAsync();
             var mode = _appSettings.ConnectionMode;
-            bool needsWireless = mode == ConnectionMode.Network
-                || (mode == ConnectionMode.Auto
-                    && AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
-                        _companionDeviceName, _companionAddress) == null);
+            bool needsWireless = mode == ConnectionMode.Network || mode == ConnectionMode.Auto;
             if (needsWireless && AndroidDeviceManager.FindCompanionDevice(devices,
                 ConnectionMode.Network, _companionDeviceName, _companionAddress) == null)
             {
@@ -1054,8 +1106,8 @@ namespace WindowsHost
                 : "-";
             TxtTransport.Text = _engineTransport;
             BtnCaptureAndroid.IsEnabled = IsAndroidCompanionConnected()
-                && _scrcpyEngine.State == ScrcpyEngineState.Ready;
-            var signature = _engineTransport + ":" + _scrcpyEngine.State;
+                && !_controlPaused && _scrcpyEngine.State == ScrcpyEngineState.Ready;
+            var signature = _engineTransport + ":" + _scrcpyEngine.State + ":" + _controlPaused;
             if (IsAndroidCompanionConnected() && signature != _lastPublishedSessionStatus)
             {
                 _lastPublishedSessionStatus = signature;
@@ -1066,7 +1118,8 @@ namespace WindowsHost
                     Payload = new
                     {
                         ControlTransport = _engineTransport == "-" ? null : _engineTransport,
-                        EngineState = _scrcpyEngine.State.ToString()
+                        EngineState = _scrcpyEngine.State.ToString(),
+                        ControlEnabled = !_controlPaused
                     }
                 }));
             }
@@ -1079,7 +1132,7 @@ namespace WindowsHost
 
         private bool IsHandoffAvailable()
         {
-            return IsAndroidCompanionConnected() && _scrcpyEngine.IsRunning;
+            return IsAndroidCompanionConnected() && !_controlPaused && _scrcpyEngine.IsRunning;
         }
 
         private bool ParkNativeInputAtEdge(NativeMethods.POINT entryPointer)

@@ -12,8 +12,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.ezacrosscontrol.data.AppTheme
 import com.example.ezacrosscontrol.data.PreferencesManager
@@ -30,6 +30,16 @@ import android.content.Intent
 class MainActivity : ComponentActivity() {
     private lateinit var webSocketClient: WebSocketClient
     private val sessionManager = InputSessionManager()
+    private var darkSystemBars = false
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val bars = WindowCompat.getInsetsController(window, window.decorView)
+            bars.isAppearanceLightStatusBars = !darkSystemBars
+            bars.isAppearanceLightNavigationBars = !darkSystemBars
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +56,7 @@ class MainActivity : ComponentActivity() {
             }
 
             SideEffect {
+                darkSystemBars = isDark
                 val bars = WindowCompat.getInsetsController(window, window.decorView)
                 bars.isAppearanceLightStatusBars = !isDark
                 bars.isAppearanceLightNavigationBars = !isDark
@@ -87,8 +98,11 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     var accessibilityEnabled by remember { mutableStateOf(AndroidControlManager.isAccessibilityEnabled) }
     var controlState by remember { mutableStateOf(AndroidControlManager.currentState) }
     var controlStopped by remember { mutableStateOf(AndroidControlManager.isManuallyStopped) }
-    var usbDebugEnabled by remember { mutableStateOf<Boolean?>(null) }
-    var wifiDebugEnabled by remember { mutableStateOf<Boolean?>(null) }
+    var readiness by remember { mutableStateOf(ConnectionReadiness()) }
+    val connectionMode by prefsManager.connectionModeFlow.collectAsState(initial = "Auto")
+    var keyboardEnabled by remember { mutableStateOf(false) }
+    var keyboardSelected by remember { mutableStateOf(false) }
+    val probe = remember { HostReadinessProbe() }
     var latency by remember { mutableStateOf<Long?>(null) }
     var logText by remember { mutableStateOf("") }
 
@@ -97,27 +111,29 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     var currentHz by remember { mutableStateOf(sessionManager.currentHz) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        fun debugEnabled(key: String): Boolean? = try {
+    LaunchedEffect(ip, port, lifecycleOwner) {
+        fun setting(key: String): Boolean? = try {
             Settings.Global.getInt(context.contentResolver, key) == 1
-        } catch (_: Settings.SettingNotFoundException) {
-            null
-        } catch (_: SecurityException) {
-            null
+        } catch (_: Settings.SettingNotFoundException) { null }
+          catch (_: SecurityException) { null }
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                accessibilityEnabled = AndroidControlManager.isAccessibilityEnabled
+                controlState = AndroidControlManager.currentState
+                controlStopped = AndroidControlManager.isManuallyStopped
+                val ime = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                val component = android.content.ComponentName(context, com.example.ezacrosscontrol.control.keyboard.EZAcrossInputMethodService::class.java)
+                keyboardEnabled = ime.enabledInputMethodList.any { android.content.ComponentName.unflattenFromString(it.id) == component }
+                keyboardSelected = android.content.ComponentName.unflattenFromString(
+                    Settings.Secure.getString(context.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD).orEmpty()) == component
+                val developer = setting(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)
+                val usb = setting(Settings.Global.ADB_ENABLED)
+                val wifi = setting("adb_wifi_enabled")
+                val (host, usbConnected, wifiConnected) = probe.check(ip, port)
+                readiness = ConnectionReadiness(developer, usb, wifi, host, usbConnected, wifiConnected)
+                delay(2000)
+            }
         }
-        fun refreshReadiness() {
-            accessibilityEnabled = AndroidControlManager.isAccessibilityEnabled
-            controlState = AndroidControlManager.currentState
-            controlStopped = AndroidControlManager.isManuallyStopped
-            usbDebugEnabled = debugEnabled(Settings.Global.ADB_ENABLED)
-            wifiDebugEnabled = debugEnabled("adb_wifi_enabled")
-        }
-        refreshReadiness()
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) refreshReadiness()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(Unit) {
@@ -159,7 +175,10 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         webSocketClient.onEventReceived = { env ->
             if (env.type == "SESSION_STATUS") {
                 coroutineScope.launch {
-                    controlTransport = env.payload.optString("ControlTransport").takeIf { it == "USB" || it == "Wi-Fi" }
+                    val transport = env.payload.optString("ControlTransport").takeIf { it == "USB" || it == "Wi-Fi" }
+                    if (transport == null && controlTransport != null) status = "Controle desconectado. Verifique a depuração."
+                    if (transport != null) status = ""
+                    controlTransport = transport
                 }
             }
             sessionManager.onEventReceived(env)
@@ -241,8 +260,11 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         controlState = controlState,
         accessibilityEnabled = accessibilityEnabled,
         controlStopped = controlStopped,
-        usbDebugEnabled = usbDebugEnabled,
-        wifiDebugEnabled = wifiDebugEnabled,
+        readiness = readiness,
+        connectionMode = connectionMode,
+        keyboardEnabled = keyboardEnabled,
+        keyboardSelected = keyboardSelected,
+        onConnectionModeChange = { value -> coroutineScope.launch { prefsManager.setConnectionMode(value) } },
         lastEvent = lastEvent,
         lastSequence = lastSequence,
         currentHz = currentHz,
@@ -258,12 +280,19 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         onThemeChange = { value -> coroutineScope.launch { prefsManager.setTheme(value) } },
         onConnect = {
             status = ""
-            webSocketClient.connect(ip, port)
+            webSocketClient.connect(ip, port, connectionMode)
         },
         onDisconnect = { webSocketClient.disconnect() },
         onOpenAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
         onOpenDeveloperSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) },
-        onStopControl = { AndroidControlManager.stopRemoteControl() },
+        onStopControl = {
+            webSocketClient.sendMessage(org.json.JSONObject().apply {
+                put("Type", "CONTROL_STOP"); put("ProtocolVersion", 1)
+                put("Payload", org.json.JSONObject())
+            }.toString())
+            AndroidControlManager.stopRemoteControl()
+            webSocketClient.disconnect()
+        },
         onEnableIme = { context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) },
         onSelectIme = {
             val inputMethodManager = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager

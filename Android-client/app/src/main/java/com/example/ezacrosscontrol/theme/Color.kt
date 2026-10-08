@@ -25,3 +25,8 @@ val DarkBorder = Color(0xFF244062)
 val DarkTextPrimary = Color(0xFFEDF4FF)
 val DarkTextSecondary = Color(0xFF9FB0C9)
 val DarkBrandCoralSoft = Color(0xFF3B2833)
+
+val WarningPrimary = Color(0xFF946000)
+val DarkWarningPrimary = Color(0xFFFFCE65)
+val ErrorPrimary = Color(0xFFBA302B)
+val DarkErrorPrimary = Color(0xFFFF9790)

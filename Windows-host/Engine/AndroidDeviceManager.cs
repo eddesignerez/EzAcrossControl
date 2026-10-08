@@ -91,13 +91,6 @@ namespace WindowsHost.Engine
             bool nameMatches(AndroidDevice device) => !string.IsNullOrWhiteSpace(companionName)
                 && string.Equals(device.Model, companionName, StringComparison.OrdinalIgnoreCase);
 
-            // Auto keeps USB priority, but only for the device that connected the APK.
-            if (mode == ConnectionMode.Auto)
-            {
-                var matchingUsb = candidates.FirstOrDefault(d => d.UsbAvailable && nameMatches(d));
-                if (matchingUsb != null) return matchingUsb;
-            }
-
             if (IPAddress.TryParse(companionAddress, out var address))
             {
                 var matchingNetwork = candidates.FirstOrDefault(d => d.TcpSerial != null

@@ -9,7 +9,7 @@ public class AndroidDeviceManagerTests
     {
         var result = AndroidDeviceManager.ParseDevices("List of devices attached\nusb-id\tdevice product:test model:Phone device:test\n192.0.2.12:37123\tdevice product:test model:Phone device:test\noffline-id\toffline model:Other\nlocked-id\tunauthorized model:Locked\n");
         var device = Assert.Single(result);
-        Assert.Equal("usb-id", device.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("192.0.2.12:37123", device.GetSerial(ConnectionMode.Auto));
         Assert.Equal("192.0.2.12:37123", device.GetSerial(ConnectionMode.Network));
         Assert.Equal("usb-id", device.GetSerial(ConnectionMode.Usb));
     }
@@ -38,14 +38,14 @@ public class AndroidDeviceManagerTests
     }
 
     [Fact]
-    public void AutoFollowsUsbRemovalAndReconnection()
+    public void AutoKeepsWifiWhenUsbIsRemovedAndReconnected()
     {
         var both = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id device model:Phone\n192.0.2.12:37123 device model:Phone\n"));
-        Assert.Equal("usb-id", both.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("192.0.2.12:37123", both.GetSerial(ConnectionMode.Auto));
         var unplugged = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id offline model:Phone\n192.0.2.12:37123 device model:Phone\n"));
         Assert.Equal("192.0.2.12:37123", unplugged.GetSerial(ConnectionMode.Auto));
         var reconnected = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id device model:Phone\n192.0.2.12:37123 device model:Phone\n"));
-        Assert.Equal("usb-id", reconnected.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("192.0.2.12:37123", reconnected.GetSerial(ConnectionMode.Auto));
     }
 
     [Fact]
@@ -75,11 +75,11 @@ public class AndroidDeviceManagerTests
     }
 
     [Fact]
-    public void AutoPrefersUsbOfMatchingTabletDespitePhoneWifi()
+    public void AutoPrefersWifiOfMatchingTabletDespitePhoneWifi()
     {
         var devices = AndroidDeviceManager.ParseDevices("tablet-usb device model:Tablet\n192.0.2.13:40000 device model:Tablet\n192.0.2.12:37123 device model:Phone\n");
         var tablet = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Auto,
             "Tablet", "192.0.2.13");
-        Assert.Equal("tablet-usb", tablet?.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("192.0.2.13:40000", tablet?.GetSerial(ConnectionMode.Auto));
     }
 }

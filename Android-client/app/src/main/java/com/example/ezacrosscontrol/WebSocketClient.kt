@@ -24,7 +24,10 @@ class WebSocketClient(context: Context) {
     var onLogMessage: ((String) -> Unit)? = null
     var onEventReceived: ((com.example.ezacrosscontrol.protocol.MessageEnvelope) -> Unit)? = null
 
-    fun connect(ip: String, port: String) {
+    private var connectionMode = "Auto"
+
+    fun connect(ip: String, port: String, mode: String = "Auto") {
+        connectionMode = mode
         if (webSocket != null) return
 
         val address = ip.trim()
@@ -45,6 +48,7 @@ class WebSocketClient(context: Context) {
 
         client = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
+            .pingInterval(3, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .build()
 
@@ -108,8 +112,10 @@ class WebSocketClient(context: Context) {
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (this@WebSocketClient.webSocket !== webSocket) return
                 onLogMessage?.invoke("Closed")
                 disconnectInternal(webSocket)
+                onConnectionFailure?.invoke("Conexão com Host encerrada")
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -170,6 +176,7 @@ class WebSocketClient(context: Context) {
             put("ProtocolVersion", 1)
             put("Payload", JSONObject().apply {
                 put("DeviceName", deviceName)
+                put("ConnectionMode", connectionMode)
             })
         }
         send(message.toString())

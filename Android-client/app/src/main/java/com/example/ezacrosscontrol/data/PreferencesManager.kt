@@ -16,6 +16,11 @@ enum class AppTheme {
 class PreferencesManager(private val context: Context) {
     private val THEME_KEY = stringPreferencesKey("theme")
     private val IP_KEY = stringPreferencesKey("ip")
+    private val MODE_KEY = stringPreferencesKey("connection_mode")
+    val connectionModeFlow = context.dataStore.data.map { it[MODE_KEY] ?: "Auto" }
+    suspend fun setConnectionMode(mode: String) {
+        context.dataStore.edit { it[MODE_KEY] = mode }
+    }
     private val PORT_KEY = stringPreferencesKey("port")
 
     val themeFlow: Flow<AppTheme> = context.dataStore.data.map { preferences ->
