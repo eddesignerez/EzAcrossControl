@@ -272,7 +272,7 @@ namespace WindowsHost
                 _topBeforeAdvanced = Top;
                 AdvancedPanel.Visibility = Visibility.Visible;
                 var workArea = SystemParameters.WorkArea;
-                Height = Math.Min(workArea.Height - 20, Math.Max(Height + 330, 950));
+                Height = Math.Min(workArea.Height - 8, Math.Max(Height + 330, 950));
                 Top = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - Height));
             }
         }

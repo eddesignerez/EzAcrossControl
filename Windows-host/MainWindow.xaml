@@ -195,9 +195,9 @@
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Connection Status" Style="{StaticResource LabelStyle}" FontWeight="Bold" Margin="0,0,0,7"/>
+                            <TextBlock Text="Connection Status" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,18"/>
                             <TextBlock x:Name="TxtServerStatus" Grid.Row="1" Text="Stopped" FontSize="25" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Text="Local Server For Your Android Device" Style="{StaticResource LabelStyle}" Margin="0,5,0,0"/>
+                            <TextBlock Grid.Row="2" Text="Local Server For Your Android Device" Style="{StaticResource LabelStyle}" Margin="0,13,0,0"/>
                             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="BtnStart" Content="Start Server" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
                                 <Button x:Name="BtnStop" Content="Stop" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}"/>
@@ -316,7 +316,7 @@
                         </Grid>
                         <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,13"/>
                         <TextBlock Text="Activity Log" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
-                        <TextBox x:Name="TxtLog" IsReadOnly="True" Height="160" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
+                        <TextBox x:Name="TxtLog" IsReadOnly="True" Height="125" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
                         <TextBox x:Name="TxtInputDebug" Visibility="Collapsed" IsReadOnly="True"/>
                     </StackPanel>
                 </Border>
