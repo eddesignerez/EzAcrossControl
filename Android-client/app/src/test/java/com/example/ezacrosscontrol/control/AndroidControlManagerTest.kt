@@ -3,11 +3,17 @@ package com.example.ezacrosscontrol.control
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.Before
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [30])
 class AndroidControlManagerTest {
 
     @Before
     fun setup() {
+        AndroidControlManager.resetManualStop()
         AndroidControlManager.onAccessibilityServiceDisconnected() // Reset to Disabled
     }
 

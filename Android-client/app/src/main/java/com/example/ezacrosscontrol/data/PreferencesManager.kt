@@ -14,6 +14,11 @@ enum class AppTheme {
 }
 
 class PreferencesManager(private val context: Context) {
+    private val LANGUAGE_KEY = stringPreferencesKey("language")
+    val languageFlow = context.dataStore.data.map { it[LANGUAGE_KEY] ?: "system" }
+    suspend fun setLanguage(language: String) {
+        context.dataStore.edit { it[LANGUAGE_KEY] = language }
+    }
     private val THEME_KEY = stringPreferencesKey("theme")
     private val IP_KEY = stringPreferencesKey("ip")
     private val MODE_KEY = stringPreferencesKey("connection_mode")
@@ -50,11 +55,7 @@ class PreferencesManager(private val context: Context) {
 
     val portFlow: Flow<String> = context.dataStore.data.map { preferences ->
         val savedPort = preferences[PORT_KEY]
-        if (savedPort == "8765") {
-            com.example.ezacrosscontrol.Config.DEFAULT_PORT
-        } else {
-            savedPort ?: com.example.ezacrosscontrol.Config.DEFAULT_PORT
-        }
+        savedPort ?: com.example.ezacrosscontrol.Config.DEFAULT_PORT
     }
 
     suspend fun setPort(port: String) {

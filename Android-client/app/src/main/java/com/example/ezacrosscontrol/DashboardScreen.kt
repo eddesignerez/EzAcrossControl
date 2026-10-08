@@ -48,6 +48,7 @@ import kotlin.math.sin
 @Composable
 internal fun DashboardScreen(
     ip: String, port: String, theme: AppTheme,
+    language: String, onLanguageChange: (String) -> Unit,
     isConnected: Boolean, isConnecting: Boolean, connectionProgress: Float,
     controlTransport: String?, status: String, latency: Long?,
     controlState: ControlState, accessibilityEnabled: Boolean, controlStopped: Boolean,
@@ -60,6 +61,7 @@ internal fun DashboardScreen(
     onOpenAccessibility: () -> Unit, onOpenDeveloperSettings: () -> Unit,
     onStopControl: () -> Unit, onEnableIme: () -> Unit, onSelectIme: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     var advancedOpen by remember { mutableStateOf(false) }
     var diagnosticsOpen by remember { mutableStateOf(false) }
 
@@ -82,16 +84,16 @@ internal fun DashboardScreen(
                     Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
                 Spacer(Modifier.width(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("EZ", Modifier.alignByBaseline(), fontFamily = FrauncesBrand,
+                    Text(strings["EZ"], Modifier.alignByBaseline(), fontFamily = FrauncesBrand,
                         fontWeight = FontWeight.ExtraBold, fontSize = if (compact) 24.sp else 28.sp, maxLines = 1)
-                    Text(" Across Control", Modifier.alignByBaseline(), fontFamily = FrauncesBrand,
+                    Text(strings[" Across Control"], Modifier.alignByBaseline(), fontFamily = FrauncesBrand,
                         fontWeight = FontWeight.Medium, fontStyle = FontStyle.Italic,
                         fontSize = if (compact) 22.sp else 26.sp, maxLines = 1)
                 }
             }
             DashboardCard {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("CONTROLE ENTRE TELAS", Modifier.fillMaxWidth().padding(horizontal = 40.dp), textAlign = TextAlign.Center,
+                    Text(strings["CONTROLE ENTRE TELAS"], Modifier.fillMaxWidth().padding(horizontal = 40.dp), textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                     ThemeToggle(theme, onThemeChange, Modifier.align(Alignment.CenterEnd))
                 }
@@ -102,14 +104,14 @@ internal fun DashboardScreen(
                 ConnectionCircle(controlReady, awaitingControl, if (isConnected && !controlReady) .65f else connectionProgress, diameter = if (tablet) 280.dp else 224.dp,
                     onToggle = { if (isConnected || isConnecting) onDisconnect() else onConnect() })
                 Spacer(Modifier.height(18.dp))
-                Text(when {
+                Text(strings[when {
                     isConnected && status.isNotBlank() -> status
                     isConnected && !controlReady -> "Controle Indisponível. Verifique a Depuração."
                     isConnected -> controlTransport ?: "Aguardando Depuração no Host"
                     isConnecting -> "Aguardando Host"
                     status.isNotBlank() -> status
                     else -> readiness.message(connectionMode)
-                }, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                }], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (controlReady || (!isConnected && !isConnecting && status.isBlank() && readiness.transport(connectionMode) != null)) colors.secondary
                         else if (isConnected) colors.tertiary else colors.onSurfaceVariant,
@@ -123,7 +125,7 @@ internal fun DashboardScreen(
                         FilterChip(selected = connectionMode == mode,
                             onClick = { onConnectionModeChange(mode) },
                             enabled = !isConnected && !isConnecting,
-                            label = { Text(mode, Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                            label = { Text(strings[mode], Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
                             modifier = Modifier.weight(1f),
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = colors.surfaceVariant, labelColor = colors.onSurfaceVariant,
@@ -133,7 +135,7 @@ internal fun DashboardScreen(
                             border = BorderStroke(1.dp, if (connectionMode == mode) colors.primary else colors.outline))
                     }
                 }
-                Text("Auto: preferência Wi-Fi; USB quando disponível.", Modifier.fillMaxWidth(),
+                Text(strings["Auto: preferência Wi-Fi; USB quando disponível."], Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
             }
             DashboardCard {
@@ -142,11 +144,11 @@ internal fun DashboardScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(ip, onIpChange, Modifier.weight(1f),
                         enabled = !isConnected && !isConnecting,
-                        label = { Text("Endereço do IP") }, singleLine = true,
+                        label = { Text(strings["Endereço do IP"]) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), shape = corner)
                     OutlinedTextField(port, onPortChange, Modifier.width(92.dp),
                         enabled = !isConnected && !isConnecting,
-                        label = { Text("Porta") }, singleLine = true,
+                        label = { Text(strings["Porta"]) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), shape = corner)
                 }
             }
@@ -157,9 +159,9 @@ internal fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically) {
                     GearIcon()
                     Spacer(Modifier.width(9.dp))
-                    Text("Modo Avançado", Modifier.weight(1f),
+                    Text(strings["Modo Avançado"], Modifier.weight(1f),
                         style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(if (advancedOpen) "⌃" else "⌄", color = colors.onSurfaceVariant)
+                    Text(strings[if (advancedOpen) "⌃" else "⌄"], color = colors.onSurfaceVariant)
                 }
                 Column(Modifier.animateContentSize()) {
                     if (advancedOpen) {
@@ -173,9 +175,9 @@ internal fun DashboardScreen(
                             if (ready) "Ready" else "Waiting", ready, waiting = !ready)
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onOpenAccessibility, Modifier.weight(1f), shape = corner) { Text("Open Settings") }
+                            OutlinedButton(onOpenAccessibility, Modifier.weight(1f), shape = corner) { Text(strings["Open Settings"]) }
                             Button(onStopControl, Modifier.weight(1f), enabled = isConnected && !controlStopped,
-                                shape = corner) { Text("Stop Control") }
+                                shape = corner) { Text(strings["Stop Control"]) }
                         }
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Remote Keyboard")
@@ -185,8 +187,8 @@ internal fun DashboardScreen(
                         ReadinessStatus("Keyboard:", if (keyboardSelected) "Selected" else "No Selected", keyboardSelected, failed = !keyboardSelected)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onEnableIme, Modifier.weight(1f), shape = corner) { Text("Open Settings") }
-                            OutlinedButton(onSelectIme, Modifier.weight(1f), shape = corner) { Text("Select Keyboard") }
+                            OutlinedButton(onEnableIme, Modifier.weight(1f), shape = corner) { Text(strings["Open Settings"]) }
+                            OutlinedButton(onSelectIme, Modifier.weight(1f), shape = corner) { Text(strings["Select Keyboard"]) }
                         }
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Depuração")
@@ -195,18 +197,20 @@ internal fun DashboardScreen(
                         Spacer(Modifier.height(8.dp))
                         ReadinessStatus("Wi-Fi:", if (readiness.wifiReady) "Ready" else if (readiness.wifiEnabled == false) "Disable" else "Waiting", readiness.wifiReady, failed = readiness.wifiEnabled == false, waiting = readiness.wifiEnabled != false && !readiness.wifiReady)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onOpenDeveloperSettings, Modifier.fillMaxWidth(), shape = corner) { Text("Open Settings") }
-                        Text("Opções do Desenvolvedor", Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                        OutlinedButton(onOpenDeveloperSettings, Modifier.fillMaxWidth(), shape = corner) { Text(strings["Open Settings"]) }
+                        Text(strings["Opções do Desenvolvedor"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
-                        TextButton({ diagnosticsOpen = !diagnosticsOpen }, Modifier.fillMaxWidth()) { Text("Diagnostics & Activity Log") }
+                        LanguageSelector(language, onLanguageChange)
+                        HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
+                        TextButton({ diagnosticsOpen = !diagnosticsOpen }, Modifier.fillMaxWidth()) { Text(strings["Diagnostics & Activity Log"]) }
                         if (diagnosticsOpen) {
                             ReadinessStatus("Latency:", latency?.let { "$it ms" } ?: "—", false)
                             ReadinessStatus("Last Event:", lastEvent, false)
                             ReadinessStatus("Sequence:", lastSequence.toString(), false)
                             ReadinessStatus("Rate:", "$currentHz ev/s", false)
                             Spacer(Modifier.height(8.dp))
-                            Text(logText.ifBlank { "No activity yet." },
+                            Text(strings[logText.ifBlank { "No activity yet." }],
                                 style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         }
                     }
@@ -219,15 +223,37 @@ internal fun DashboardScreen(
 }
 
 @Composable
+private fun LanguageSelector(language: String, onChange: (String) -> Unit) {
+    val strings = LocalStrings.current
+    var expanded by remember { mutableStateOf(false) }
+    val options = listOf(LanguageOption("system", strings["System Language"])) + strings.languages
+    CardHeading("Language")
+    Spacer(Modifier.height(8.dp))
+    Box(Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
+            Text(options.firstOrNull { it.code == language }?.label ?: strings["System Language"], Modifier.weight(1f))
+            Text("⌄")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option -> DropdownMenuItem(text = { Text(option.label) }, onClick = {
+                expanded = false
+                onChange(option.code)
+            }) }
+        }
+    }
+}
+
+@Composable
 private fun ConnectionCircle(connected: Boolean, connecting: Boolean, progress: Float, diameter: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
+    val strings = LocalStrings.current
     val colors = MaterialTheme.colorScheme
     val animatedProgress by animateFloatAsState(
         if (connected) 1f else if (connecting) progress.coerceIn(0f, .95f) else 0f,
         tween(450), label = "Connection Progress")
     Box(Modifier.size(diameter).clip(CircleShape).semantics {
-        stateDescription = when { connected -> "Conectado"; connecting -> "Aguardando Host"; else -> "Desconectado" }
+        stateDescription = strings[when { connected -> "Conectado"; connecting -> "Aguardando Host"; else -> "Desconectado" }]
         if (connecting) progressBarRangeInfo = ProgressBarRangeInfo(animatedProgress, 0f..1f)
-    }.clickable(role = Role.Button, onClickLabel = if (connected || connecting) "Desconectar" else "Conectar",
+    }.clickable(role = Role.Button, onClickLabel = strings[if (connected || connecting) "Desconectar" else "Conectar"],
         onClick = onToggle), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 12.dp.toPx()
@@ -247,9 +273,9 @@ private fun ConnectionCircle(connected: Boolean, connecting: Boolean, progress: 
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(when { connected -> "Conectado"; connecting -> "Aguardando"; else -> "Conectar" },
+            Text(strings[when { connected -> "Conectado"; connecting -> "Aguardando"; else -> "Conectar" }],
                 fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text(when { connected -> "TOQUE PARA SAIR"; connecting -> "${(animatedProgress * 100).roundToInt()}%"; else -> "TOQUE AQUI" },
+            Text(strings[when { connected -> "TOQUE PARA SAIR"; connecting -> "${(animatedProgress * 100).roundToInt()}%"; else -> "TOQUE AQUI" }],
                 style = if (connecting) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                 color = colors.primary, textAlign = TextAlign.Center)
         }
@@ -284,14 +310,16 @@ private fun DashboardCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun CardHeading(text: String) {
-    Text(text, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    val strings = LocalStrings.current
+    Text(strings[text], Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 }
 
 @Composable
 private fun ReadinessStatus(label: String, value: String, ready: Boolean, failed: Boolean = false, waiting: Boolean = false) {
+    val strings = LocalStrings.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
+        Text(strings[label], Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(strings[value], style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold,
             color = when {
                 ready -> MaterialTheme.colorScheme.secondary
                 failed -> MaterialTheme.colorScheme.error
@@ -303,12 +331,13 @@ private fun ReadinessStatus(label: String, value: String, ready: Boolean, failed
 
 @Composable
 private fun ThemeToggle(theme: AppTheme, onChange: (AppTheme) -> Unit, modifier: Modifier = Modifier) {
+    val strings = LocalStrings.current
     val dark = when (theme) { AppTheme.Dark -> true; AppTheme.Light -> false; else -> isSystemInDarkTheme() }
     val colors = MaterialTheme.colorScheme
     IconButton(onClick = { onChange(if (dark) AppTheme.Light else AppTheme.Dark) },
         modifier = modifier.semantics {
-            stateDescription = if (dark) "Tema Escuro" else "Tema Claro"
-            contentDescription = if (dark) "Alternar para Tema Claro" else "Alternar para Tema Escuro"
+            stateDescription = strings[if (dark) "Dark Theme" else "Light Theme"]
+            contentDescription = strings[if (dark) "Light Theme" else "Dark Theme"]
         },
         colors = IconButtonDefaults.iconButtonColors(contentColor = colors.primary)) {
         Canvas(Modifier.size(22.dp)) {

@@ -1,5 +1,9 @@
 # Current Status
 
+## Distribution 1.1.0
+
+Installable Windows and signed Android packages, 11 languages and current validation evidence are documented in [Release 1.1.0](release-1.1.0.md).
+
 ## Phase 1.5: Configuration, Ports and Design System (Completed)
 - **Objective**: Consolidate the base by introducing a unified Design System (Light/Dark/System), centralizing network configurations, and standardizing the UI with the Inter font.
 - **Implemented**:
@@ -29,12 +33,21 @@
 - [x] Phase 2.5 — Android Keyboard Control Layer
 - [ ] Phase 2.6 — Continuous Handoff Refinement
 
+## Phase 3: UHID & V2 Architecture
+- [x] Phase 3.0 — UHID Feasibility Prototype
+- [x] Phase 3.2.1 — Scrcpy UHID Parity Audit
+- [x] Phase V2.1 — Scrcpy Core Integration
+- [ ] Phase V2.2 — Dual Transport (USB + Network)
+- [ ] Phase V2.3 — Edge Handoff & Robustness
+
 ## Documentation Index
 - [Architecture](architecture.md)
-- [Protocol](protocol.md)
-- [Phase 1.6 Validation](phase-1.6-validation.md)
+- [Protocol](../Protocol/protocol.md)
 - [Phase 2.2 Edge Transition](phase-2.2-edge-transition.md)
 - [Phase 2.3 Input Protocol](phase-2.3-input-protocol.md)
-- [Phase 2.3.5 Physical Validation](phase-2.3.5-physical-validation.md)
 - [Phase 2.4 Android Mouse Control](phase-2.4-android-mouse-control.md)
 - [Phase 2.5 Natural Keyboard](phase-2.5-natural-keyboard.md)
+- [Phase 3.0 UHID Feasibility](phase-3.0-uhid-feasibility.md)
+- [Phase 3.2.1 Scrcpy UHID Parity](phase-3.2.1-scrcpy-uhid-parity.md)
+- [V2: Build Scrcpy Windows](v2/build-scrcpy-windows.md)
+- [V2: Dual Transport](v2/dual-transport.md)

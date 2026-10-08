@@ -24,6 +24,8 @@ local.properties
 .dotnet/
 .build-layout/
 .publish-staging/
+.release-private/
+release-output/
 work/
 server_log.txt
 logcat*.txt

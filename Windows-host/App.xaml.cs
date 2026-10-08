@@ -23,6 +23,7 @@ public partial class App : System.Windows.Application
         Logger.Log("APP", "Windows Host Started");
 
         ThemeManager.Initialize();
+        Localization.Initialize();
     }
 
     private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

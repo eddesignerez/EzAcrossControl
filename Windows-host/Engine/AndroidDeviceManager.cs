@@ -10,6 +10,8 @@ namespace WindowsHost.Engine
 {
     public class AndroidDeviceManager
     {
+        public static string AdbPath => System.IO.File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy", "adb.exe"))
+            ? System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy", "adb.exe") : "adb";
         public async Task<List<AndroidDevice>> GetDevicesAsync()
         {
             var output = await RunAdbCommandAsync("devices -l");
@@ -143,7 +145,7 @@ namespace WindowsHost.Engine
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "adb",
+                    FileName = AdbPath,
                     Arguments = arguments,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

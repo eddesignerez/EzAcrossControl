@@ -81,12 +81,16 @@ namespace WindowsHost
         private bool _trayHintShown;
         private double _heightBeforeAdvanced;
         private double _topBeforeAdvanced;
+        private bool _updatingLanguage;
 
 
         public MainWindow()
         {
             InitializeComponent();
             InitializeTrayIcon();
+            CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
+            CmbLanguage.SelectedValue = Localization.Preference;
+            ApplyLanguageLayout();
             TxtLocalIP.Text = GetLocalIPAddress();
             TxtPort.Text = Config.DefaultPort.ToString();
             UpdateThemeButtons();
@@ -120,8 +124,8 @@ namespace WindowsHost
             _edgeHandoffService.Start();
 
             _scrcpyEngine.StateChanged += (s, state) => Dispatcher.InvokeAsync(() => {
-                TxtEngineState.Text = state.ToString().ToUpper();
-                TxtEngineStatus.Text = state.ToString().ToUpper();
+                Localization.SetStatus(TxtEngineState, state.ToString().ToUpper());
+                Localization.SetStatus(TxtEngineStatus, state.ToString().ToUpper());
 
                 switch (state)
                 {
@@ -223,8 +227,8 @@ namespace WindowsHost
             // _showInputDebug bool controls debug output if needed.
 
             Loaded += (_, _) => {
-                TxtEngineState.Text = "WAITING APK";
-                TxtEngineStatus.Text = "WAITING APK";
+                Localization.SetStatus(TxtEngineState, "WAITING APK");
+                Localization.SetStatus(TxtEngineStatus, "WAITING APK");
                 BtnStartEngine.IsEnabled = false;
                 UpdateEngineBadge();
                 Log("Waiting for Connect in the Android app. Engine starts automatically after HELLO.");
@@ -252,11 +256,67 @@ namespace WindowsHost
             UpdateEngineBadge();
         }
 
+        private void CmbLanguage_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_updatingLanguage || CmbLanguage.SelectedValue is not string code) return;
+            Localization.Save(code);
+            _updatingLanguage = true;
+            try {
+                CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
+                CmbLanguage.SelectedValue = code;
+            } finally { _updatingLanguage = false; }
+            ApplyLanguageLayout();
+            if (_trayIcon?.ContextMenuStrip is { } menu) {
+                menu.Items[0].Text = Localization.T("Restore"); menu.Items[1].Text = Localization.T("Exit");
+            }
+            Dispatcher.BeginInvoke(() => {
+                UpdateLayout();
+                var area = SystemParameters.WorkArea;
+                Height = Math.Min(area.Height - 8, MainContent.ActualHeight + MainContent.Margin.Top + MainContent.Margin.Bottom);
+                Top = Math.Max(area.Top, Math.Min(Top, area.Bottom - Height));
+            });
+        }
+
         private void UpdateEngineBadge()
         {
             TxtEngineState.Foreground = (Brush)FindResource(
-                TxtEngineState.Text.Equals("READY", StringComparison.OrdinalIgnoreCase)
+                _scrcpyEngine?.State == ScrcpyEngineState.Ready
                     ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+        }
+
+        private double MeasureLabel(string source, double size, FontWeight weight)
+        {
+            var text = new FormattedText(Localization.T(source), System.Globalization.CultureInfo.CurrentUICulture,
+                System.Windows.FlowDirection.LeftToRight, new Typeface(FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
+                size, (Brush)FindResource("TextPrimaryBrush"), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            return Math.Ceiling(text.WidthIncludingTrailingWhitespace);
+        }
+
+        private void ApplyLanguageLayout()
+        {
+            var labels = new[] { "Android Position", "Connection Mode", "Transport / Control", "Sensitivity",
+                "Activation Delay", "Edge Status", "Device", "Local IP", "Port" };
+            var labelWidth = Math.Max(155, labels.Max(x => MeasureLabel(x, 12, FontWeights.Normal)) + 18);
+            labelWidth = Math.Max(labelWidth, new[] { "Running", "Stopped", "Error" }
+                .Max(x => MeasureLabel(x, 22, FontWeights.Bold)) + 14);
+            System.Windows.Application.Current.Resources["FieldLabelWidth"] = new GridLength(labelWidth);
+            BtnStart.Width = MeasureLabel("Start Server", FontSize, FontWeights.SemiBold) + 30;
+            BtnStop.Width = Math.Max(52, MeasureLabel("Stop", FontSize, FontWeights.SemiBold) + 30);
+            CmbActiveEdge.Width = Math.Max(130, new[] { "Right", "Left", "Top", "Bottom", "Disabled" }
+                .Max(x => MeasureLabel(x, FontSize, FontWeights.Normal)) + 44);
+            CmbConnectionMode.Width = Math.Max(130, MeasureLabel("Auto", FontSize, FontWeights.Normal) + 44);
+            var fieldWidth = Math.Max(CmbActiveEdge.Width, Math.Max(CmbConnectionMode.Width, BtnStart.Width + BtnStop.Width + 8));
+            // Use the same two columns in every language; expand only as much as the translated content needs.
+            var cardWidth = labelWidth + fieldWidth + 34;
+            var actionWidth = new[] { "Capture Android", "Return Windows" }.Sum(x => MeasureLabel(x, FontSize, FontWeights.SemiBold) + 30) + 8 + 34;
+            var titles = new[] { "Connection Status", "Android Device", "Screen Edge", "Network" }
+                .Max(x => MeasureLabel(x, 17, FontWeights.SemiBold)) + 34;
+            cardWidth = Math.Max(cardWidth, Math.Max(actionWidth, titles));
+            var desired = Math.Max(740, cardWidth * 2 + 12 + 32);
+            var available = SystemParameters.WorkArea.Width - 8;
+            MinWidth = Math.Min(desired, available);
+            Width = MinWidth;
+            if (IsLoaded) Left = Math.Max(SystemParameters.WorkArea.Left, Math.Min(Left, SystemParameters.WorkArea.Right - Width));
         }
 
         private void BtnAdvanced_Click(object sender, RoutedEventArgs e)
@@ -297,8 +357,8 @@ namespace WindowsHost
         {
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControl152D4D.ico");
             var menu = new WinForms.ContextMenuStrip();
-            menu.Items.Add("Restore", null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
-            menu.Items.Add("Exit", null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
+            menu.Items.Add(Localization.T("Restore"), null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
+            menu.Items.Add(Localization.T("Exit"), null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
             _trayIcon = new WinForms.NotifyIcon
             {
                 Icon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : Drawing.SystemIcons.Application,
@@ -357,7 +417,7 @@ namespace WindowsHost
         {
             try
             {
-                System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now:HH:mm:ss}] {message}\n");
+                System.IO.File.AppendAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "server_log.txt"), $"[{DateTime.Now:HH:mm:ss}] {message}\n");
             }
             catch { }
             
@@ -372,7 +432,7 @@ namespace WindowsHost
         {
             if (!int.TryParse(TxtPort.Text, out int port))
             {
-                MessageBox.Show("Invalid port");
+                MessageBox.Show(Localization.T("Invalid port"));
                 return;
             }
 
@@ -393,15 +453,15 @@ namespace WindowsHost
             }
             catch (HttpListenerException ex) when (ex.ErrorCode == 5)
             {
-                TxtServerStatus.Text = "Error";
+                Localization.SetStatus(TxtServerStatus, "Error");
                 Log($"[SERVER] Error: Access Denied (HTTP 400 cause). You MUST run EZ Across Control as Administrator to listen on LAN IP.");
-                MessageBox.Show("Please restart the application as Administrator to accept LAN connections.", "Administrator Required");
+                MessageBox.Show(Localization.T("Please restart the application as Administrator to accept LAN connections."), Localization.T("Administrator Required"));
                 _listener?.Close();
                 _listener = null;
             }
             catch (Exception ex)
             {
-                TxtServerStatus.Text = "Error";
+                Localization.SetStatus(TxtServerStatus, "Error");
                 Log($"[SERVER] Error starting server: {ex.Message}");
                 _listener?.Close();
                 _listener = null;
@@ -410,7 +470,7 @@ namespace WindowsHost
 
         private void StartListening(string prefix)
         {
-            TxtServerStatus.Text = "Running";
+            Localization.SetStatus(TxtServerStatus, "Running");
             BtnStart.IsEnabled = false;
             BtnStop.IsEnabled = true;
             TxtPort.IsEnabled = false;
@@ -801,7 +861,7 @@ namespace WindowsHost
                 _listener.Close();
                 _listener = null;
                 
-                TxtServerStatus.Text = "Stopped";
+                Localization.SetStatus(TxtServerStatus, "Stopped");
                 BtnStart.IsEnabled = true;
                 BtnStop.IsEnabled = false;
                 TxtPort.IsEnabled = true;
@@ -1048,7 +1108,7 @@ namespace WindowsHost
             }
             else
             {
-                TxtDeviceName.Text = "No Device Found";
+                TxtDeviceName.Text = Localization.T("No Device Found");
                 _engineTransport = "-";
                 UpdateTransportDisplay();
                 if (_lastUnavailableMode != mode.ToString()) Log(mode == ConnectionMode.Network
@@ -1058,14 +1118,14 @@ namespace WindowsHost
                         : "Automatic engine start: no matching ADB device found. Check the cable or paired Wireless debugging.");
                 _lastUnavailableMode = mode.ToString();
                 BtnStartEngine.IsEnabled = true;
-                TxtEngineState.Text = "NO DEVICE";
-                TxtEngineStatus.Text = "NO DEVICE";
+                Localization.SetStatus(TxtEngineState, "NO DEVICE");
+                Localization.SetStatus(TxtEngineStatus, "NO DEVICE");
                 UpdateEngineBadge();
                 return;
             }
             
             _lastUnavailableMode = null;
-            TxtEngineState.Text = "STARTING...";
+            Localization.SetStatus(TxtEngineState, "STARTING...");
             UpdateEngineBadge();
             BtnStartEngine.IsEnabled = false;
             await _scrcpyEngine.StartAsync(mode, device);
@@ -1201,12 +1261,12 @@ namespace WindowsHost
             {
                 switch (e.State)
                 {
-                    case EdgeState.Idle: TxtEdgeStatus.Text = "Waiting"; break;
-                    case EdgeState.Candidate: TxtEdgeStatus.Text = "Edge Detected"; break;
-                    case EdgeState.Armed: TxtEdgeStatus.Text = "Ready To Switch"; break;
+                    case EdgeState.Idle: Localization.SetStatus(TxtEdgeStatus, "Waiting"); break;
+                    case EdgeState.Candidate: Localization.SetStatus(TxtEdgeStatus, "Edge Detected"); break;
+                    case EdgeState.Armed: Localization.SetStatus(TxtEdgeStatus, "Ready To Switch"); break;
                     case EdgeState.Disabled:
                     case EdgeState.Cancelled:
-                        TxtEdgeStatus.Text = e.State.ToString();
+                        Localization.SetStatus(TxtEdgeStatus, e.State.ToString());
                         break;
                 }
             });

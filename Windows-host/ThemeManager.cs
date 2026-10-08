@@ -15,7 +15,7 @@ namespace WindowsHost
 
     public static class ThemeManager
     {
-        private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "theme.txt");
+        private static readonly string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "theme.txt");
 
         public static void Initialize()
         {
@@ -37,6 +37,7 @@ namespace WindowsHost
 
         public static void SaveThemePreference(AppTheme theme)
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
             File.WriteAllText(ConfigPath, theme.ToString());
             ApplyTheme(theme);
         }

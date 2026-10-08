@@ -5,14 +5,15 @@ EZ Across Control is designed to allow seamless control of an Android tablet fro
 
 ## Components
 1. **Windows Host**: A .NET 8 WPF application. It acts as the server, opening a WebSocket server and waiting for connections from the Android client. Once connected, it will capture local mouse/keyboard events and send them over the network (Phase 2+).
-2. **Android Client**: A Kotlin Android application. It acts as the client, connecting to the Windows Host's IP and port via WebSockets.
-3. **InputSessionManager (Android)**: Receives the events, parsing coordinates and clicks.
-4. **AndroidControlManager (Android)**: Acts as a state machine (`Disabled`, `Ready`, `Controlling`) to manage the remote control session and dispatch events to the overlay and executor.
-5. **EZAcrossAccessibilityService (Android)**: An `AccessibilityService` that draws a floating cursor (`CursorOverlayManager`) and uses `dispatchGesture()` (`MouseActionExecutor`) to inject clicks and scrolls into the UI without root privileges.
-6. **Input Capture Layer (Windows)**: A decoupled service (`WindowsInputCaptureService`) using Win32 low-level hooks (`WH_MOUSE_LL`, `WH_KEYBOARD_LL`) to observe raw input events (mouse, keyboard, scroll, modifiers) globally.
-7. **Edge Transition Layer**: `EdgeTransitionService` detects when the cursor reaches external monitor edges (`MonitorGeometry`) and manages the State Machine (Idle -> Candidate -> Armed) for transition intent, without coupling the user interface.
-8. **Protocol**: The JSON-based WebSocket messaging protocol that ensures decoupling between the platforms.
-9. **Design System & Theming**: Both platforms implement a unified design system with Light, Dark, and System modes. Themes are persisted locally (DataStore on Android, App Settings on Windows). Interfaces are built using semantic tokens rather than hardcoded HEX colors.
+2. **V2 Scrcpy Core**: The primary engine for input injection on Android. We utilize a patched `scrcpy.exe` client on the Windows side communicating with the official `scrcpy-server.jar` on the Android side to provide native USB/UHID HID events.
+3. **Android Client (Legacy/Fallback)**: A Kotlin Android application handling custom overlay and accessibility injection if Scrcpy isn't used.
+4. **InputSessionManager (Android)**: Receives the events, parsing coordinates and clicks.
+5. **AndroidControlManager (Android)**: Acts as a state machine (`Disabled`, `Ready`, `Controlling`) to manage the remote control session and dispatch events to the overlay and executor.
+6. **EZAcrossAccessibilityService (Android)**: An `AccessibilityService` that draws a floating cursor (`CursorOverlayManager`) and uses `dispatchGesture()` (`MouseActionExecutor`) to inject clicks and scrolls into the UI without root privileges.
+7. **Input Capture Layer (Windows)**: A decoupled service (`WindowsInputCaptureService`) using Win32 low-level hooks (`WH_MOUSE_LL`, `WH_KEYBOARD_LL`) to observe raw input events (mouse, keyboard, scroll, modifiers) globally.
+8. **Edge Transition Layer**: `EdgeTransitionService` detects when the cursor reaches external monitor edges (`MonitorGeometry`) and manages the State Machine (Idle -> Candidate -> Armed) for transition intent, without coupling the user interface.
+9. **Protocol**: The JSON-based WebSocket messaging protocol that ensures decoupling between the platforms.
+10. **Design System & Theming**: Both platforms implement a unified design system with Light, Dark, and System modes. Themes are persisted locally (DataStore on Android, App Settings on Windows). Interfaces are built using semantic tokens rather than hardcoded HEX colors.
 
 ## Input Session Management
 - **Rate-Limiting & Coalescing**: Throttles high-frequency mouse movement events to ~120Hz to prevent network congestion and payload buildup.

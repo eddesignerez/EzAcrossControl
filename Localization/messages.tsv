@@ -1,0 +1,108 @@
+Connection Status|Estado da Conexão|Estado de Conexión|接続状態|Stato Connessione|État de Connexion|Verbindungsstatus|连接状态|Trạng Thái Kết Nối|연결 상태|حالة الاتصال
+Network|Rede|Red|ネットワーク|Rete|Réseau|Netzwerk|网络|Mạng|네트워크|الشبكة
+Local IP|IP Local|IP Local|ローカルIP|IP Locale|IP Local|Lokale IP|本地 IP|IP Nội Bộ|로컬 IP|عنوان IP المحلي
+Port|Porta|Puerto|ポート|Porta|Port|Port|端口|Cổng|포트|المنفذ
+Start Server|Iniciar Servidor|Iniciar Servidor|サーバー起動|Avvia Server|Démarrer le Serveur|Server Starten|启动服务器|Khởi Động Máy Chủ|서버 시작|تشغيل الخادم
+Stop|Parar|Detener|停止|Ferma|Arrêter|Stoppen|停止|Dừng|중지|إيقاف
+Running|Em Execução|En Ejecución|稼働中|In Esecuzione|En Fonctionnement|Aktiv|运行中|Đang Chạy|실행 중|قيد التشغيل
+Stopped|Parado|Detenido|停止中|Fermo|Arrêté|Gestoppt|已停止|Đã Dừng|중지됨|متوقف
+Error|Erro|Error|エラー|Errore|Erreur|Fehler|错误|Lỗi|오류|خطأ
+Local Server For Your Android Device|Servidor Local Para Seu Android|Servidor Local Para Tu Android|Android用ローカルサーバー|Server Locale Per Android|Serveur Local Pour Android|Lokaler Server Für Android|Android 本地服务器|Máy Chủ Nội Bộ Cho Android|Android용 로컬 서버|خادم محلي لجهاز Android
+Android Device|Dispositivo Android|Dispositivo Android|Androidデバイス|Dispositivo Android|Appareil Android|Android-Gerät|Android 设备|Thiết Bị Android|Android 기기|جهاز Android
+Device|Dispositivo|Dispositivo|デバイス|Dispositivo|Appareil|Gerät|设备|Thiết Bị|기기|الجهاز
+Connection Mode|Modo de Conexão|Modo de Conexión|接続モード|Modalità Connessione|Mode de Connexion|Verbindungsmodus|连接模式|Chế Độ Kết Nối|연결 모드|وضع الاتصال
+Transport / Control|Transporte / Controle|Transporte / Control|通信 / 操作|Trasporto / Controllo|Transport / Contrôle|Transport / Steuerung|传输 / 控制|Truyền Dẫn / Điều Khiển|전송 / 제어|النقل / التحكم
+Capture Android|Controlar Android|Controlar Android|Androidを操作|Controlla Android|Contrôler Android|Android Steuern|控制 Android|Điều Khiển Android|Android 제어|التحكم في Android
+Return Windows|Voltar ao Windows|Volver a Windows|Windowsに戻る|Torna a Windows|Revenir à Windows|Zurück zu Windows|返回 Windows|Trở Lại Windows|Windows로 돌아가기|العودة إلى Windows
+Screen Edge|Borda da Tela|Borde de Pantalla|画面の端|Bordo Schermo|Bord de l’Écran|Bildschirmrand|屏幕边缘|Cạnh Màn Hình|화면 가장자리|حافة الشاشة
+Android Position|Posição do Android|Posición de Android|Androidの位置|Posizione Android|Position Android|Android-Position|Android 位置|Vị Trí Android|Android 위치|موضع Android
+Sensitivity|Sensibilidade|Sensibilidad|感度|Sensibilità|Sensibilité|Empfindlichkeit|灵敏度|Độ Nhạy|감도|الحساسية
+Activation Delay|Atraso de Ativação|Retardo de Activación|起動遅延|Ritardo Attivazione|Délai d’Activation|Aktivierungsverzögerung|激活延迟|Độ Trễ Kích Hoạt|활성화 지연|تأخير التفعيل
+Edge Status|Estado da Borda|Estado del Borde|画面端の状態|Stato Bordo|État du Bord|Randstatus|边缘状态|Trạng Thái Cạnh|가장자리 상태|حالة الحافة
+Input Engine|Motor de Controle|Motor de Control|入力エンジン|Motore di Controllo|Moteur de Contrôle|Eingabemodul|输入引擎|Bộ Điều Khiển|입력 엔진|محرك الإدخال
+Start Engine|Iniciar Motor|Iniciar Motor|エンジン起動|Avvia Motore|Démarrer le Moteur|Modul Starten|启动引擎|Khởi Động Bộ Điều Khiển|엔진 시작|تشغيل المحرك
+Advanced|Avançado|Avanzado|詳細設定|Avanzate|Avancé|Erweitert|高级|Nâng Cao|고급|متقدم
+Diagnostics & Activity Log|Diagnóstico e Registro de Atividade|Diagnóstico y Registro de Actividad|診断とアクティビティログ|Diagnostica e Registro Attività|Diagnostic et Journal d’Activité|Diagnose und Aktivitätsprotokoll|诊断与活动日志|Chẩn Đoán và Nhật Ký Hoạt Động|진단 및 활동 로그|التشخيص وسجل النشاط
+Diagnostics|Diagnóstico|Diagnóstico|診断|Diagnostica|Diagnostic|Diagnose|诊断|Chẩn Đoán|진단|التشخيص
+Activity Log|Registro de Atividade|Registro de Actividad|アクティビティログ|Registro Attività|Journal d’Activité|Aktivitätsprotokoll|活动日志|Nhật Ký Hoạt Động|활동 로그|سجل النشاط
+Transport|Transporte|Transporte|通信|Trasporto|Transport|Transport|传输|Truyền Dẫn|전송|النقل
+Waiting|Aguardando|Esperando|待機中|In Attesa|En Attente|Warten|等待中|Đang Chờ|대기 중|انتظار
+Ready|Pronto|Listo|準備完了|Pronto|Prêt|Bereit|就绪|Sẵn Sàng|준비됨|جاهز
+Offline|Offline|Sin Conexión|オフライン|Non Connesso|Hors Ligne|Offline|离线|Ngoại Tuyến|오프라인|غير متصل
+Starting|Iniciando|Iniciando|起動中|Avvio|Démarrage|Startet|正在启动|Đang Khởi Động|시작 중|جارٍ التشغيل
+Captured|Controlando|Controlando|操作中|In Controllo|En Contrôle|Steuerung Aktiv|控制中|Đang Điều Khiển|제어 중|قيد التحكم
+WAITING APK|AGUARDANDO APK|ESPERANDO APK|APK待機中|ATTESA APK|ATTENTE APK|WARTE AUF APK|等待 APK|ĐANG CHỜ APK|APK 대기 중|انتظار APK
+NO DEVICE|SEM DISPOSITIVO|SIN DISPOSITIVO|デバイスなし|NESSUN DISPOSITIVO|AUCUN APPAREIL|KEIN GERÄT|无设备|KHÔNG CÓ THIẾT BỊ|기기 없음|لا يوجد جهاز
+No Device Found|Nenhum Dispositivo|Ningún Dispositivo|デバイスがありません|Nessun Dispositivo|Aucun Appareil|Kein Gerät Gefunden|未找到设备|Không Tìm Thấy Thiết Bị|기기를 찾을 수 없음|لم يتم العثور على جهاز
+Unknown|Desconhecido|Desconocido|不明|Sconosciuto|Inconnu|Unbekannt|未知|Không Xác Định|알 수 없음|غير معروف
+Unknown Device|Dispositivo Desconhecido|Dispositivo Desconocido|不明なデバイス|Dispositivo Sconosciuto|Appareil Inconnu|Unbekanntes Gerät|未知设备|Thiết Bị Không Xác Định|알 수 없는 기기|جهاز غير معروف
+Edge Detected|Borda Detectada|Borde Detectado|画面端を検出|Bordo Rilevato|Bord Détecté|Rand Erkannt|检测到边缘|Đã Phát Hiện Cạnh|가장자리 감지됨|تم اكتشاف الحافة
+Ready To Switch|Pronto Para Alternar|Listo Para Cambiar|切り替え可能|Pronto Per Cambiare|Prêt à Basculer|Bereit Zum Wechseln|准备切换|Sẵn Sàng Chuyển|전환 준비됨|جاهز للتبديل
+Disabled|Desativado|Desactivado|無効|Disattivato|Désactivé|Deaktiviert|已禁用|Đã Tắt|비활성화됨|معطل
+Cancelled|Cancelado|Cancelado|キャンセル済み|Annullato|Annulé|Abgebrochen|已取消|Đã Hủy|취소됨|ملغى
+Right|Direita|Derecha|右|Destra|Droite|Rechts|右|Phải|오른쪽|يمين
+Left|Esquerda|Izquierda|左|Sinistra|Gauche|Links|左|Trái|왼쪽|يسار
+Top|Acima|Arriba|上|Sopra|Haut|Oben|上|Trên|위|أعلى
+Bottom|Abaixo|Abajo|下|Sotto|Bas|Unten|下|Dưới|아래|أسفل
+Auto|Auto|Auto|自動|Auto|Auto|Auto|自动|Tự Động|자동|تلقائي
+Restore|Restaurar|Restaurar|復元|Ripristina|Restaurer|Wiederherstellen|恢复|Khôi Phục|복원|استعادة
+Exit|Sair|Salir|終了|Esci|Quitter|Beenden|退出|Thoát|종료|خروج
+Language|Idioma|Idioma|言語|Lingua|Langue|Sprache|语言|Ngôn Ngữ|언어|اللغة
+System Language|Idioma do Sistema|Idioma del Sistema|システム言語|Lingua di Sistema|Langue du Système|Systemsprache|系统语言|Ngôn Ngữ Hệ Thống|시스템 언어|لغة النظام
+Invalid port|Porta Inválida|Puerto Inválido|無効なポート|Porta Non Valida|Port Non Valide|Ungültiger Port|端口无效|Cổng Không Hợp Lệ|잘못된 포트|منفذ غير صالح
+Administrator Required|Administrador Necessário|Administrador Necesario|管理者権限が必要|Amministratore Richiesto|Administrateur Requis|Administrator Erforderlich|需要管理员权限|Cần Quyền Quản Trị|관리자 권한 필요|يلزم مسؤول
+Please restart the application as Administrator to accept LAN connections.|Reinicie o aplicativo como Administrador para aceitar conexões LAN.|Reinicia la aplicación como Administrador para aceptar conexiones LAN.|LAN接続を受け入れるには管理者として再起動してください。|Riavvia come Amministratore per accettare connessioni LAN.|Redémarrez en administrateur pour accepter les connexions LAN.|Für LAN-Verbindungen als Administrator neu starten.|请以管理员身份重新启动以接受局域网连接。|Khởi động lại với quyền quản trị để nhận kết nối LAN.|LAN 연결을 허용하려면 관리자 권한으로 다시 시작하세요.|أعد تشغيل التطبيق كمسؤول لقبول اتصالات الشبكة المحلية.
+CONTROLE ENTRE TELAS|CONTROLE ENTRE TELAS|CONTROL ENTRE PANTALLAS|画面間の操作|CONTROLLO TRA SCHERMI|CONTRÔLE ENTRE ÉCRANS|STEUERUNG ZWISCHEN BILDSCHIRMEN|跨屏控制|ĐIỀU KHIỂN GIỮA CÁC MÀN HÌNH|화면 간 제어|التحكم بين الشاشات
+Conectar|Conectar|Conectar|接続|Connetti|Connecter|Verbinden|连接|Kết Nối|연결|اتصال
+Conectado|Conectado|Conectado|接続済み|Connesso|Connecté|Verbunden|已连接|Đã Kết Nối|연결됨|متصل
+Aguardando|Aguardando|Esperando|待機中|In Attesa|En Attente|Warten|等待中|Đang Chờ|대기 중|انتظار
+Desconectado|Desconectado|Desconectado|未接続|Disconnesso|Déconnecté|Getrennt|已断开|Đã Ngắt Kết Nối|연결 끊김|غير متصل
+Desconectar|Desconectar|Desconectar|切断|Disconnetti|Déconnecter|Trennen|断开|Ngắt Kết Nối|연결 해제|قطع الاتصال
+TOQUE AQUI|TOQUE AQUI|TOCA AQUÍ|ここをタップ|TOCCA QUI|APPUYEZ ICI|HIER TIPPEN|点击此处|CHẠM VÀO ĐÂY|여기를 누르세요|اضغط هنا
+TOQUE PARA SAIR|TOQUE PARA SAIR|TOCA PARA SALIR|タップして切断|TOCCA PER USCIRE|APPUYEZ POUR QUITTER|ZUM TRENNEN TIPPEN|点击断开|CHẠM ĐỂ THOÁT|눌러서 연결 해제|اضغط للخروج
+Host PC|Host PC|PC Anfitrión|ホストPC|PC Host|PC Hôte|Host-PC|主机电脑|Máy Tính Chủ|호스트 PC|الكمبيوتر المضيف
+Endereço do IP|Endereço do IP|Dirección IP|IPアドレス|Indirizzo IP|Adresse IP|IP-Adresse|IP 地址|Địa Chỉ IP|IP 주소|عنوان IP
+Porta|Porta|Puerto|ポート|Porta|Port|Port|端口|Cổng|포트|المنفذ
+Modo Avançado|Modo Avançado|Modo Avanzado|詳細設定|Modalità Avanzata|Mode Avancé|Erweiterter Modus|高级模式|Chế Độ Nâng Cao|고급 모드|الوضع المتقدم
+Remote Control|Controle Remoto|Control Remoto|リモート操作|Controllo Remoto|Contrôle à Distance|Fernsteuerung|远程控制|Điều Khiển Từ Xa|원격 제어|التحكم عن بعد
+Accessibility|Acessibilidade|Accesibilidad|ユーザー補助|Accessibilità|Accessibilité|Bedienungshilfen|无障碍|Hỗ Trợ Tiếp Cận|접근성|إمكانية الوصول
+Enable|Ativado|Activado|有効|Attivato|Activé|Aktiviert|已启用|Đã Bật|활성화됨|مفعل
+Disable|Desativado|Desactivado|無効|Disattivato|Désactivé|Deaktiviert|已禁用|Đã Tắt|비활성화됨|معطل
+Open Settings|Abrir Configurações|Abrir Ajustes|設定を開く|Apri Impostazioni|Ouvrir les Paramètres|Einstellungen Öffnen|打开设置|Mở Cài Đặt|설정 열기|فتح الإعدادات
+Stop Control|Parar Controle|Detener Control|操作を停止|Ferma Controllo|Arrêter le Contrôle|Steuerung Stoppen|停止控制|Dừng Điều Khiển|제어 중지|إيقاف التحكم
+Remote Keyboard|Teclado Remoto|Teclado Remoto|リモートキーボード|Tastiera Remota|Clavier à Distance|Ferntastatur|远程键盘|Bàn Phím Từ Xa|원격 키보드|لوحة مفاتيح عن بعد
+Keyboard|Teclado|Teclado|キーボード|Tastiera|Clavier|Tastatur|键盘|Bàn Phím|키보드|لوحة المفاتيح
+Selected|Selecionado|Seleccionado|選択済み|Selezionato|Sélectionné|Ausgewählt|已选择|Đã Chọn|선택됨|محدد
+No Selected|Não Selecionado|No Seleccionado|未選択|Non Selezionato|Non Sélectionné|Nicht Ausgewählt|未选择|Chưa Chọn|선택 안 됨|غير محدد
+Select Keyboard|Selecionar Teclado|Seleccionar Teclado|キーボードを選択|Seleziona Tastiera|Choisir le Clavier|Tastatur Auswählen|选择键盘|Chọn Bàn Phím|키보드 선택|اختيار لوحة المفاتيح
+Depuração|Depuração|Depuración|デバッグ|Debug|Débogage|Debugging|调试|Gỡ Lỗi|디버깅|تصحيح الأخطاء
+Opções do Desenvolvedor|Opções do Desenvolvedor|Opciones de Desarrollador|開発者向けオプション|Opzioni Sviluppatore|Options de Développement|Entwickleroptionen|开发者选项|Tùy Chọn Nhà Phát Triển|개발자 옵션|خيارات المطور
+Auto: preferência Wi-Fi; USB quando disponível.|Auto: preferência Wi-Fi; USB quando disponível.|Auto: prioridad Wi-Fi; USB si está disponible.|自動：Wi-Fiを優先し、USBも利用可能。|Auto: preferisce Wi-Fi; USB se disponibile.|Auto : priorité Wi-Fi ; USB si disponible.|Auto: bevorzugt Wi-Fi; USB falls verfügbar.|自动：优先 Wi-Fi，可用时使用 USB。|Tự động: ưu tiên Wi-Fi; USB khi khả dụng.|자동: Wi-Fi 우선, 사용 가능한 USB로 전환.|تلقائي: تفضيل Wi-Fi ثم USB عند توفره.
+Aguardando Host|Aguardando Host|Esperando al Host|ホスト待機中|In Attesa dell’Host|En Attente de l’Hôte|Warte auf Host|等待主机|Đang Chờ Máy Chủ|호스트 대기 중|انتظار المضيف
+Controle Indisponível. Verifique a Depuração.|Controle Indisponível. Verifique a Depuração.|Control No Disponible. Revisa la Depuración.|操作不可。デバッグ設定を確認してください。|Controllo Non Disponibile. Verifica il Debug.|Contrôle Indisponible. Vérifiez le Débogage.|Steuerung Nicht Verfügbar. Debugging Prüfen.|控制不可用，请检查调试。|Không Thể Điều Khiển. Kiểm Tra Gỡ Lỗi.|제어할 수 없습니다. 디버깅을 확인하세요.|التحكم غير متاح. تحقق من تصحيح الأخطاء.
+Controle desconectado. Verifique a depuração.|Controle desconectado. Verifique a depuração.|Control desconectado. Revisa la depuración.|操作が切断されました。デバッグ設定を確認してください。|Controllo disconnesso. Verifica il debug.|Contrôle déconnecté. Vérifiez le débogage.|Steuerung getrennt. Debugging prüfen.|控制已断开，请检查调试。|Điều khiển bị ngắt. Kiểm tra gỡ lỗi.|제어 연결이 끊겼습니다. 디버깅을 확인하세요.|انقطع التحكم. تحقق من تصحيح الأخطاء.
+Pronto para Conectar via USB|Pronto para Conectar via USB|Listo para Conectar por USB|USB接続準備完了|Pronto a Connettere via USB|Prêt à Connecter via USB|Bereit zur Verbindung über USB|可通过 USB 连接|Sẵn Sàng Kết Nối Qua USB|USB 연결 준비됨|جاهز للاتصال عبر USB
+Pronto para Conectar via Wi-Fi|Pronto para Conectar via Wi-Fi|Listo para Conectar por Wi-Fi|Wi-Fi接続準備完了|Pronto a Connettere via Wi-Fi|Prêt à Connecter via Wi-Fi|Bereit zur Verbindung über Wi-Fi|可通过 Wi-Fi 连接|Sẵn Sàng Kết Nối Qua Wi-Fi|Wi-Fi 연결 준비됨|جاهز للاتصال عبر Wi-Fi
+Ative as Opções do Desenvolvedor|Ative as Opções do Desenvolvedor|Activa las Opciones de Desarrollador|開発者向けオプションを有効にしてください|Attiva le Opzioni Sviluppatore|Activez les Options de Développement|Entwickleroptionen Aktivieren|请启用开发者选项|Bật Tùy Chọn Nhà Phát Triển|개발자 옵션을 켜세요|فعّل خيارات المطور
+Ative a Depuração USB|Ative a Depuração USB|Activa la Depuración USB|USBデバッグを有効にしてください|Attiva il Debug USB|Activez le Débogage USB|USB-Debugging Aktivieren|请启用 USB 调试|Bật Gỡ Lỗi USB|USB 디버깅을 켜세요|فعّل تصحيح أخطاء USB
+Ative a Depuração Wi-Fi|Ative a Depuração Wi-Fi|Activa la Depuración Wi-Fi|Wi-Fiデバッグを有効にしてください|Attiva il Debug Wi-Fi|Activez le Débogage Wi-Fi|Wi-Fi-Debugging Aktivieren|请启用 Wi-Fi 调试|Bật Gỡ Lỗi Wi-Fi|Wi-Fi 디버깅을 켜세요|فعّل تصحيح أخطاء Wi-Fi
+Ative a Depuração Wi-Fi ou USB|Ative a Depuração Wi-Fi ou USB|Activa la Depuración Wi-Fi o USB|Wi-FiまたはUSBデバッグを有効にしてください|Attiva il Debug Wi-Fi o USB|Activez le Débogage Wi-Fi ou USB|Wi-Fi- oder USB-Debugging Aktivieren|请启用 Wi-Fi 或 USB 调试|Bật Gỡ Lỗi Wi-Fi Hoặc USB|Wi-Fi 또는 USB 디버깅을 켜세요|فعّل تصحيح أخطاء Wi-Fi أو USB
+Abra o Host PC e verifique a conexão LAN|Abra o Host PC e verifique a conexão LAN|Abre el Host PC y revisa la red LAN|ホストPCを開きLAN接続を確認してください|Apri il PC Host e Verifica la LAN|Ouvrez le PC Hôte et Vérifiez le Réseau LAN|Host-PC Öffnen und LAN Prüfen|打开主机电脑并检查局域网|Mở Máy Tính Chủ Và Kiểm Tra LAN|호스트 PC를 열고 LAN을 확인하세요|افتح الكمبيوتر المضيف وتحقق من الشبكة المحلية
+Conecte o cabo USB e autorize a depuração|Conecte o cabo USB e autorize a depuração|Conecta el cable USB y autoriza la depuración|USBケーブルを接続してデバッグを許可してください|Collega il Cavo USB e Autorizza il Debug|Branchez le Câble USB et Autorisez le Débogage|USB-Kabel Verbinden und Debugging Zulassen|连接 USB 线并授权调试|Cắm Cáp USB Và Cho Phép Gỡ Lỗi|USB 케이블을 연결하고 디버깅을 허용하세요|وصّل كابل USB واسمح بتصحيح الأخطاء
+Conecte e autorize a Depuração Wi-Fi no Host PC|Conecte e autorize a Depuração Wi-Fi no Host PC|Conecta y autoriza la Depuración Wi-Fi en el Host PC|ホストPCでWi-Fiデバッグを接続・許可してください|Connetti e Autorizza il Debug Wi-Fi sul PC Host|Connectez et Autorisez le Débogage Wi-Fi sur le PC Hôte|Wi-Fi-Debugging am Host-PC Verbinden und Zulassen|在主机电脑上连接并授权 Wi-Fi 调试|Kết Nối Và Cho Phép Gỡ Lỗi Wi-Fi Trên Máy Tính Chủ|호스트 PC에서 Wi-Fi 디버깅을 연결하고 허용하세요|وصّل واسمح بتصحيح أخطاء Wi-Fi على الكمبيوتر المضيف
+Conecte e autorize a Depuração Wi-Fi ou USB|Conecte e autorize a Depuração Wi-Fi ou USB|Conecta y autoriza la Depuración Wi-Fi o USB|Wi-FiまたはUSBデバッグを接続・許可してください|Connetti e Autorizza il Debug Wi-Fi o USB|Connectez et Autorisez le Débogage Wi-Fi ou USB|Wi-Fi- oder USB-Debugging Verbinden und Zulassen|连接并授权 Wi-Fi 或 USB 调试|Kết Nối Và Cho Phép Gỡ Lỗi Wi-Fi Hoặc USB|Wi-Fi 또는 USB 디버깅을 연결하고 허용하세요|وصّل واسمح بتصحيح أخطاء Wi-Fi أو USB
+Endereço do IP inválido|Endereço do IP inválido|Dirección IP no válida|IPアドレスが無効です|Indirizzo IP Non Valido|Adresse IP Non Valide|Ungültige IP-Adresse|IP 地址无效|Địa Chỉ IP Không Hợp Lệ|잘못된 IP 주소|عنوان IP غير صالح
+Porta inválida|Porta inválida|Puerto no válido|ポートが無効です|Porta Non Valida|Port Non Valide|Ungültiger Port|端口无效|Cổng Không Hợp Lệ|잘못된 포트|منفذ غير صالح
+Host não respondeu|Host não respondeu|El Host no respondió|ホストから応答がありません|L’Host Non Risponde|L’Hôte Ne Répond Pas|Host Antwortet Nicht|主机未响应|Máy Chủ Không Phản Hồi|호스트 응답 없음|المضيف لا يستجيب
+Falha na conexão com Host|Falha na conexão com Host|Error al conectar con el Host|ホスト接続に失敗しました|Connessione all’Host Fallita|Échec de Connexion à l’Hôte|Verbindung zum Host Fehlgeschlagen|连接主机失败|Kết Nối Máy Chủ Thất Bại|호스트 연결 실패|فشل الاتصال بالمضيف
+Conexão com Host encerrada|Conexão com Host encerrada|Conexión con el Host cerrada|ホスト接続が終了しました|Connessione all’Host Chiusa|Connexion à l’Hôte Fermée|Verbindung zum Host Beendet|主机连接已关闭|Kết Nối Máy Chủ Đã Đóng|호스트 연결 종료됨|تم إنهاء الاتصال بالمضيف
+Protocolo do Host incompatível|Protocolo do Host incompatível|Protocolo del Host incompatible|ホストのプロトコルに互換性がありません|Protocollo Host Incompatibile|Protocole Hôte Incompatible|Host-Protokoll Inkompatibel|主机协议不兼容|Giao Thức Máy Chủ Không Tương Thích|호스트 프로토콜 호환 안 됨|بروتوكول المضيف غير متوافق
+Latency|Latência|Latencia|遅延|Latenza|Latence|Latenz|延迟|Độ Trễ|지연 시간|زمن الاستجابة
+Last Event|Último Evento|Último Evento|最終イベント|Ultimo Evento|Dernier Événement|Letztes Ereignis|最后事件|Sự Kiện Gần Nhất|최근 이벤트|آخر حدث
+Sequence|Sequência|Secuencia|シーケンス|Sequenza|Séquence|Sequenz|序列|Trình Tự|순서|التسلسل
+Rate|Taxa|Tasa|レート|Frequenza|Fréquence|Rate|速率|Tốc Độ|속도|المعدل
+No activity yet.|Nenhuma atividade.|Sin actividad todavía.|まだアクティビティはありません。|Nessuna Attività.|Aucune Activité.|Noch Keine Aktivität.|暂无活动。|Chưa Có Hoạt Động.|아직 활동이 없습니다.|لا يوجد نشاط بعد.
+Light Theme|Tema Claro|Tema Claro|ライトテーマ|Tema Chiaro|Thème Clair|Helles Design|浅色主题|Giao Diện Sáng|밝은 테마|المظهر الفاتح
+Dark Theme|Tema Escuro|Tema Oscuro|ダークテーマ|Tema Scuro|Thème Sombre|Dunkles Design|深色主题|Giao Diện Tối|어두운 테마|المظهر الداكن
+Minimize|Minimizar|Minimizar|最小化|Riduci a Icona|Réduire|Minimieren|最小化|Thu Nhỏ|최소화|تصغير
+Hide To Tray|Ocultar na Bandeja|Ocultar en Bandeja|トレイに隠す|Nascondi nella Tray|Masquer dans la Zone de Notification|Im Tray Ausblenden|隐藏到托盘|Ẩn Vào Khay|트레이로 숨기기|إخفاء في علبة النظام

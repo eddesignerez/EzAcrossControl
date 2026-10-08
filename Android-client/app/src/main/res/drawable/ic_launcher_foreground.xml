@@ -1,5 +1,5 @@
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:insetLeft="24dp" android:insetTop="24dp"
-    android:insetRight="24dp" android:insetBottom="24dp">
-    <bitmap android:src="@drawable/ez_across_logo" android:gravity="fill" android:filter="true" />
+    android:insetLeft="18dp" android:insetTop="18dp"
+    android:insetRight="18dp" android:insetBottom="18dp">
+    <bitmap android:src="@drawable/ez_across_symbol" android:gravity="fill" android:filter="true" />
 </inset>

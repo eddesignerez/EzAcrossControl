@@ -11,7 +11,7 @@
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="14" UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
-    <Window.Resources>
+    <Window.Resources><DataTemplate x:Key="WrappedButtonText"><TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center"/></DataTemplate>
         <Style x:Key="CardStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -25,7 +25,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         </Style>
         <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/><Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
@@ -165,7 +165,7 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Background="{DynamicResource SurfaceSoftBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="3" Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
-                                <Button x:Name="BtnThemeLight" Click="BtnThemeLight_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="Light Theme" AutomationProperties.Name="Light Theme" Width="38" Height="32">
+                                <Button x:Name="BtnThemeLight" Click="BtnThemeLight_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="{DynamicResource Ui.Light Theme}" AutomationProperties.Name="{DynamicResource Ui.Light Theme}" Width="38" Height="32">
                                     <Viewbox Width="20" Height="20">
                                         <Canvas Width="24" Height="24">
                                             <Ellipse Canvas.Left="8" Canvas.Top="8" Width="8" Height="8" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.8"/>
@@ -174,16 +174,16 @@
                                         </Canvas>
                                     </Viewbox>
                                 </Button>
-                                <Button x:Name="BtnThemeDark" Click="BtnThemeDark_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="Dark Theme" AutomationProperties.Name="Dark Theme" Width="38" Height="32">
+                                <Button x:Name="BtnThemeDark" Click="BtnThemeDark_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="{DynamicResource Ui.Dark Theme}" AutomationProperties.Name="{DynamicResource Ui.Dark Theme}" Width="38" Height="32">
                                     <Path Width="19" Height="19" Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Data="M 17,2 A 9,9 0 1 0 22,16 A 8,8 0 0 1 17,2 Z"/>
                                 </Button>
                             </StackPanel>
                         </Border>
-                        <Button Click="BtnMinimize_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="Minimize" AutomationProperties.Name="Minimize" Margin="0,0,8,0">
+                        <Button Click="BtnMinimize_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="{DynamicResource Ui.Minimize}" AutomationProperties.Name="{DynamicResource Ui.Minimize}" Margin="0,0,8,0">
                             <Path Data="M0,0 L16,0" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"/>
                         </Button>
-                        <Button Click="BtnClose_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="Hide To Tray" AutomationProperties.Name="Hide To Tray">
+                        <Button Click="BtnClose_Click" Style="{StaticResource TitleButtonStyle}" ToolTip="{DynamicResource Ui.Hide To Tray}" AutomationProperties.Name="{DynamicResource Ui.Hide To Tray}">
                             <Path Data="M0,0 L12,12 M12,0 L0,12" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.7"/>
                         </Button>
                     </StackPanel>
@@ -194,25 +194,25 @@
                     <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="130">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Grid.ColumnSpan="2" Text="Connection Status" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
-                            <TextBlock x:Name="TxtServerStatus" Grid.Row="1" Text="Stopped" FontSize="25" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="Local Server For Your Android Device" Style="{StaticResource LabelStyle}" Margin="0,10,0,0"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.ColumnSpan="2" Text="{DynamicResource Ui.Connection Status}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
+                            <TextBlock x:Name="TxtServerStatus" Grid.Row="1" Text="{DynamicResource Ui.Stopped}" FontSize="22" TextWrapping="Wrap" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{DynamicResource Ui.Local Server For Your Android Device}" Style="{StaticResource LabelStyle}" Margin="0,10,0,0"/>
                             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                <Button x:Name="BtnStart" Content="Start Server" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
-                                <Button x:Name="BtnStop" Content="Stop" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                                <Button x:Name="BtnStart" Width="92" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Start Server}" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnStop" Width="58" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Stop}" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
                     <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="130">
                         <StackPanel>
-                            <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
-                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Local IP" Style="{StaticResource LabelStyle}"/>
-                                <TextBlock x:Name="TxtLocalIP" Grid.Column="1" Text="Unknown" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{DynamicResource Ui.Network}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
+                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Local IP}" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock x:Name="TxtLocalIP" Grid.Column="1" Text="{DynamicResource Ui.Unknown}" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
                             </Grid>
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Port" Style="{StaticResource LabelStyle}"/>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Port}" Style="{StaticResource LabelStyle}"/>
                                 <TextBox x:Name="TxtPort" Grid.Column="1" Style="{StaticResource NumericFieldStyle}" HorizontalAlignment="Left"/>
                             </Grid>
                         </StackPanel>
@@ -223,19 +223,19 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="206">
                         <StackPanel>
-                            <TextBlock Text="Android Device" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
-                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Device" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock Text="{DynamicResource Ui.Android Device}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Device}" Style="{StaticResource LabelStyle}"/>
                                 <TextBlock x:Name="TxtDeviceName" Grid.Column="1" Text="-" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
                             </Grid>
-                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Connection Mode" Style="{StaticResource LabelStyle}"/>
+                            <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Connection Mode}" Style="{StaticResource LabelStyle}"/>
                                 <ComboBox x:Name="CmbConnectionMode" Grid.Column="1" Width="130" HorizontalAlignment="Left" SelectionChanged="CmbConnectionMode_SelectionChanged">
-                                    <ComboBoxItem Content="Auto" Tag="Auto"/><ComboBoxItem Content="USB" Tag="Usb"/><ComboBoxItem Content="Wi-Fi" Tag="Network"/>
+                                    <ComboBoxItem Content="{DynamicResource Ui.Auto}" Tag="Auto"/><ComboBoxItem Content="USB" Tag="Usb"/><ComboBoxItem Content="Wi-Fi" Tag="Network"/>
                                 </ComboBox>
                             </Grid>
-                            <Grid Margin="0,0,0,15"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Transport / Control" Style="{StaticResource LabelStyle}"/>
+                            <Grid Margin="0,0,0,15"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Transport / Control}" Style="{StaticResource LabelStyle}"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <TextBlock x:Name="TxtTransport" Text="-" Style="{StaticResource ValueStyle}"/>
                                     <TextBlock Text=" / " Style="{StaticResource ValueStyle}"/>
@@ -243,33 +243,33 @@
                                 </StackPanel>
                             </Grid>
                             <WrapPanel>
-                                <Button x:Name="BtnCaptureAndroid" Content="Capture Android" IsEnabled="False" Click="BtnCaptureAndroid_Click" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
-                                <Button x:Name="BtnReturnWindows" Content="Return Windows" IsEnabled="False" Click="BtnReturnWindows_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                                <Button x:Name="BtnCaptureAndroid" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Capture Android}" IsEnabled="False" Click="BtnCaptureAndroid_Click" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnReturnWindows" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Return Windows}" IsEnabled="False" Click="BtnReturnWindows_Click" Style="{StaticResource SecondaryButtonStyle}"/>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="206">
                         <StackPanel>
-                            <TextBlock Text="Screen Edge" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
-                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Android Position" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock Text="{DynamicResource Ui.Screen Edge}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Android Position}" Style="{StaticResource LabelStyle}"/>
                                 <ComboBox x:Name="CmbActiveEdge" Grid.Column="1" Width="155" HorizontalAlignment="Left" SelectionChanged="CmbActiveEdge_SelectionChanged">
-                                    <ComboBoxItem Content="Left" Tag="Left"/><ComboBoxItem Content="Right" Tag="Right"/>
-                                    <ComboBoxItem Content="Top" Tag="Top"/><ComboBoxItem Content="Bottom" Tag="Bottom"/>
-                                    <ComboBoxItem Content="Disabled" Tag="Disabled"/>
+                                    <ComboBoxItem Content="{DynamicResource Ui.Left}" Tag="Left"/><ComboBoxItem Content="{DynamicResource Ui.Right}" Tag="Right"/>
+                                    <ComboBoxItem Content="{DynamicResource Ui.Top}" Tag="Top"/><ComboBoxItem Content="{DynamicResource Ui.Bottom}" Tag="Bottom"/>
+                                    <ComboBoxItem Content="{DynamicResource Ui.Disabled}" Tag="Disabled"/>
                                 </ComboBox>
                             </Grid>
-                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Sensitivity" Style="{StaticResource LabelStyle}"/>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Sensitivity}" Style="{StaticResource LabelStyle}"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal"><TextBox x:Name="TxtEdgeThreshold" Style="{StaticResource NumericFieldStyle}" TextChanged="TxtEdgeOptions_TextChanged"/><TextBlock Text="px" Style="{StaticResource LabelStyle}" Margin="8,0,0,0"/></StackPanel>
                             </Grid>
-                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Activation Delay" Style="{StaticResource LabelStyle}"/>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Activation Delay}" Style="{StaticResource LabelStyle}"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal"><TextBox x:Name="TxtEdgeDelay" Style="{StaticResource NumericFieldStyle}" TextChanged="TxtEdgeOptions_TextChanged"/><TextBlock Text="ms" Style="{StaticResource LabelStyle}" Margin="8,0,0,0"/></StackPanel>
                             </Grid>
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="Edge Status" Style="{StaticResource LabelStyle}"/>
-                                <TextBlock x:Name="TxtEdgeStatus" Grid.Column="1" Text="Waiting" Style="{StaticResource ValueStyle}"/>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Ui.Edge Status}" Style="{StaticResource LabelStyle}"/>
+                                <TextBlock x:Name="TxtEdgeStatus" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -279,19 +279,19 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Input Engine" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,9"/>
+                            <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,9"/>
                             <Border Background="{DynamicResource SuccessBackgroundBrush}" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
-                                <TextBlock x:Name="TxtEngineState" Text="Offline" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold"/>
+                                <TextBlock x:Name="TxtEngineState" Text="{DynamicResource Ui.Offline}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold"/>
                             </Border>
-                            <TextBlock x:Name="TxtEngineStatus" Text="Offline" Visibility="Collapsed"/>
+                            <TextBlock x:Name="TxtEngineStatus" Text="{DynamicResource Ui.Offline}" Visibility="Collapsed"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button x:Name="BtnStartEngine" Content="Start Engine" Click="BtnStartEngine_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
-                            <Button x:Name="BtnAdvanced" Click="BtnAdvanced_Click" Style="{StaticResource SecondaryButtonStyle}" AutomationProperties.Name="Advanced" Width="142">
+                            <Button x:Name="BtnStartEngine" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Start Engine}" Click="BtnStartEngine_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
+                            <Button x:Name="BtnAdvanced" Click="BtnAdvanced_Click" Style="{StaticResource SecondaryButtonStyle}" AutomationProperties.Name="{DynamicResource Ui.Advanced}" Width="142">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Width="22" Height="22" Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                                           Data="M12,2 L14,2 L14.6,4.3 L16.5,5.1 L18.5,3.9 L20,5.4 L18.8,7.4 L19.7,9.4 L22,10 L22,12 L19.7,12.6 L18.8,14.6 L20,16.6 L18.5,18.1 L16.5,16.9 L14.6,17.7 L14,20 L12,20 L11.4,17.7 L9.5,16.9 L7.5,18.1 L6,16.6 L7.2,14.6 L6.3,12.6 L4,12 L4,10 L6.3,9.4 L7.2,7.4 L6,5.4 L7.5,3.9 L9.5,5.1 L11.4,4.3 Z M13,8 A3,3 0 1 0 13,14 A3,3 0 1 0 13,8 Z"/>
-                                    <TextBlock Text="Advanced" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Ui.Advanced}" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -300,22 +300,24 @@
 
                 <Border x:Name="AdvancedPanel" Style="{StaticResource CardStyle}" Margin="0,12,0,0" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="Diagnostics &amp; Activity Log" Style="{StaticResource LabelStyle}" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <TextBlock Text="Diagnostics" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,11"/>
+                        <TextBlock Text="{DynamicResource Ui.Diagnostics &amp; Activity Log}" Style="{StaticResource LabelStyle}" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <Grid Margin="0,0,0,11"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+<TextBlock Text="{DynamicResource Ui.Diagnostics}" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
+<StackPanel Grid.Column="1" Orientation="Horizontal"><TextBlock Text="{DynamicResource Ui.Language}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/><ComboBox x:Name="CmbLanguage" Width="190" DisplayMemberPath="Label" SelectedValuePath="Code" SelectionChanged="CmbLanguage_SelectionChanged"/></StackPanel></Grid>
                         <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Input Engine" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource LabelStyle}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEngineState}" Style="{StaticResource ValueStyle}"/>
                         </Grid>
                         <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Transport" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock Text="{DynamicResource Ui.Transport}" Style="{StaticResource LabelStyle}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtTransport}" Style="{StaticResource ValueStyle}"/>
                         </Grid>
                         <Grid Margin="0,0,0,13"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Edge Status" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock Text="{DynamicResource Ui.Edge Status}" Style="{StaticResource LabelStyle}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEdgeStatus}" Style="{StaticResource ValueStyle}"/>
                         </Grid>
                         <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,13"/>
-                        <TextBlock Text="Activity Log" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
+                        <TextBlock Text="{DynamicResource Ui.Activity Log}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
                         <TextBox x:Name="TxtLog" IsReadOnly="True" Height="125" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
                         <TextBox x:Name="TxtInputDebug" Visibility="Collapsed" IsReadOnly="True"/>
                     </StackPanel>

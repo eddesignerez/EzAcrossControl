@@ -140,6 +140,7 @@ namespace WindowsHost.Engine
                 psi.ArgumentList.Add(serial);
 
                 psi.EnvironmentVariables["SCRCPY_SERVER_PATH"] = serverPath;
+                psi.EnvironmentVariables["ADB"] = AndroidDeviceManager.AdbPath;
 
                 Debug.WriteLine("[SCRCPY] Process.Start");
                 _scrcpyProcess = new Process { StartInfo = psi };

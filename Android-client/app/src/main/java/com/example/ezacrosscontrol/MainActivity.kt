@@ -48,6 +48,9 @@ class MainActivity : ComponentActivity() {
         val prefsManager = PreferencesManager(this)
 
         setContent {
+            val language by prefsManager.languageFlow.collectAsState(initial = "system")
+            val systemLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].toLanguageTag()
+            val strings = remember(language, systemLocale) { AppStrings(applicationContext, language) }
             val theme by prefsManager.themeFlow.collectAsState(initial = AppTheme.System)
             val isDark = when (theme) {
                 AppTheme.Dark -> true
@@ -62,6 +65,7 @@ class MainActivity : ComponentActivity() {
                 bars.isAppearanceLightNavigationBars = !isDark
             }
 
+            CompositionLocalProvider(LocalStrings provides strings) {
             EZAcrossControlTheme(darkTheme = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -69,6 +73,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     MainScreen(webSocketClient, prefsManager, sessionManager)
                 }
+            }
             }
         }
     }
@@ -87,6 +92,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     val savedIp by prefsManager.ipFlow.collectAsState(initial = "")
     val savedPort by prefsManager.portFlow.collectAsState(initial = Config.DEFAULT_PORT)
     val savedTheme by prefsManager.themeFlow.collectAsState(initial = AppTheme.System)
+    val language by prefsManager.languageFlow.collectAsState(initial = "system")
 
     var ip by remember(savedIp) { mutableStateOf(savedIp.ifEmpty { "192.168." }) }
     var port by remember(savedPort) { mutableStateOf(savedPort) }
@@ -251,6 +257,8 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         ip = ip,
         port = port,
         theme = savedTheme,
+        language = language,
+        onLanguageChange = { value -> coroutineScope.launch { prefsManager.setLanguage(value) } },
         isConnected = isConnected,
         isConnecting = isConnecting,
         connectionProgress = connectionProgress,
