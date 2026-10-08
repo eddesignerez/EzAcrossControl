@@ -4,7 +4,9 @@ import androidx.compose.ui.graphics.Color
 
 // Shared Brand Colors
 val BrandCoral = Color(0xFFFF604B)
+val OnBrand = Color(0xFFFFFFFF)
 val SuccessColor = Color(0xFF16835B)
+val DarkSuccessColor = Color(0xFF43C59A)
 
 // Light Theme Colors
 val LightBackground = Color(0xFFF6F8FC)

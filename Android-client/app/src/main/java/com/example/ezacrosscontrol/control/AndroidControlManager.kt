@@ -16,12 +16,15 @@ enum class ControlState {
 
 object AndroidControlManager {
     private var accessibilityService: AccessibilityService? = null
-    private var overlayManager: CursorOverlayManager? = null
+    private var returnEdgeSensor: ReturnEdgeSensor? = null
     private var coordinateMapper: CoordinateMapper? = null
     private var actionExecutor: MouseActionExecutor? = null
 
     var currentState: ControlState = ControlState.Disabled
         private set
+
+    val isAccessibilityEnabled: Boolean
+        get() = accessibilityService != null
 
     // State listener for UI
     var onStateChanged: ((ControlState) -> Unit)? = null
@@ -35,18 +38,18 @@ object AndroidControlManager {
     private var pointerX: Float = 0f
     private var pointerY: Float = 0f
     private val pointerSensitivity = 1.5f
-    
+
     private var currentSessionId: Int = -1
     private val remoteEntryInsetPx = 12f
     private val returnArmDistancePx = 40f
     private val returnPushThreshold = 16f
-    
+
     private var returnDetectionArmed = false
     private var accumulatedReturnDelta = 0f
     private var entryEdge = ""
-    
+
     var disableAutomaticReturn = false
-    
+
     private var rxMouseEventsCount = 0L
     private var lastRxLogTimeMs = 0L
     private var lastRxTimeMs = 0L
@@ -77,7 +80,6 @@ object AndroidControlManager {
                     processCursorMovement(dx, dy)
                 }
 
-                overlayManager?.updatePosition(pointerX.toInt(), pointerY.toInt())
                 Choreographer.getInstance().postFrameCallback(this)
             } else {
                 activeFrameLoops--
@@ -93,37 +95,38 @@ object AndroidControlManager {
         Log.i("EZAcrossAccessibility", "[ACCESSIBILITY] Service available = true")
         accessibilityService = service
         coordinateMapper = CoordinateMapper(service)
-        overlayManager = CursorOverlayManager(service)
+        returnEdgeSensor = ReturnEdgeSensor(service)
         actionExecutor = MouseActionExecutor(service)
-        
+
         if (currentState == ControlState.Disabled) {
             setState(ControlState.Ready)
         }
     }
 
     fun onAccessibilityServiceDisconnected() {
-        overlayManager?.destroy()
+        returnEdgeSensor?.disarm()
         accessibilityService = null
         coordinateMapper = null
-        overlayManager = null
+        returnEdgeSensor = null
         actionExecutor = null
-        
+
         setState(ControlState.Disabled)
     }
 
     fun stopRemoteControl() {
         isManuallyStopped = true
-        overlayManager?.hide()
+        returnEdgeSensor?.disarm()
         setState(ControlState.Ready) // Or stay in Ready/Stopped
+        onRequestHandoffEnd?.invoke()
     }
-    
+
     fun resetManualStop() {
         isManuallyStopped = false
     }
 
     fun onConnectionStateChanged(isConnected: Boolean) {
         if (!isConnected) {
-            overlayManager?.hide()
+            returnEdgeSensor?.disarm()
             if (currentState != ControlState.Disabled) {
                 setState(ControlState.Disconnected)
             }
@@ -139,23 +142,21 @@ object AndroidControlManager {
         if (isManuallyStopped) return
         if (accessibilityService != null) {
             coordinateMapper?.updateMetrics()
-            
+
             currentSessionId = sessionId
             returnDetectionArmed = false
             accumulatedReturnDelta = 0f
             entryEdge = edge
-            
+
             // Initialize remote cursor position based on entry edge
             val width = coordinateMapper?.getScreenWidth() ?: 1080
             val height = coordinateMapper?.getScreenHeight() ?: 1920
             when (edge) {
                 "Right" -> {
-                    // Entered from Windows Right edge, so it appears on Android Left edge
                     pointerX = remoteEntryInsetPx
                     pointerY = height / 2f
                 }
                 "Left" -> {
-                    // Entered from Windows Left edge, appears on Android Right edge
                     pointerX = width.toFloat() - remoteEntryInsetPx
                     pointerY = height / 2f
                 }
@@ -172,10 +173,13 @@ object AndroidControlManager {
                     pointerY = height / 2f
                 }
             }
-            
-            overlayManager?.show()
-            overlayManager?.updatePosition(pointerX.toInt(), pointerY.toInt())
-            Log.d("AndroidControlManager", "[LATENCY] HandoffBegin received. Windows Tx: $clientTxTimestamp. Overlay requested.")
+
+            returnEdgeSensor?.onReturnDetected = {
+                handleReturnToWindows()
+            }
+            returnEdgeSensor?.arm(edge)
+
+            Log.d("AndroidControlManager", "[LATENCY] HandoffBegin received. Windows Tx: $clientTxTimestamp. Armed return sensor.")
             setState(ControlState.Controlling)
 
             mainHandler.post {
@@ -192,10 +196,21 @@ object AndroidControlManager {
         }
     }
 
+    var onRequestReturnToWindows: ((Int, String) -> Unit)? = null
+
+    private fun handleReturnToWindows() {
+        val edgeStr = entryEdge
+        val sessionId = currentSessionId
+
+        // Keep the sensor/session active until Windows confirms INPUT_HANDOFF_END.
+        // Windows may reject an edge request while a native mouse button is held.
+        onRequestReturnToWindows?.invoke(sessionId, edgeStr)
+    }
+
     fun handleHandoffEnd(sessionId: Int) {
         if (sessionId == -1 || sessionId == currentSessionId) {
             currentSessionId = -1
-            overlayManager?.hide()
+            returnEdgeSensor?.disarm()
             leftButtonDown = false
             if (accessibilityService != null) {
                 setState(ControlState.Ready)
@@ -212,7 +227,7 @@ object AndroidControlManager {
 
     fun handleMouseMove(normalizedX: Double, normalizedY: Double, deltaX: Int, deltaY: Int) {
         if (currentState != ControlState.Controlling || isManuallyStopped) return
-        
+
         rxMouseEventsCount++
         val now = System.currentTimeMillis()
         if (now - lastRxLogTimeMs >= 1000) {
@@ -220,7 +235,7 @@ object AndroidControlManager {
             rxMouseEventsCount = 0
             lastRxLogTimeMs = now
         }
-        
+
         if (lastRxTimeMs != 0L) {
             val rxInterval = now - lastRxTimeMs
             if (rxInterval > 30) {
@@ -236,10 +251,10 @@ object AndroidControlManager {
     private fun processCursorMovement(deltaX: Int, deltaY: Int) {
         val width = coordinateMapper?.getScreenWidth() ?: return
         val height = coordinateMapper?.getScreenHeight() ?: return
-        
+
         pointerX += deltaX * pointerSensitivity
         pointerY += deltaY * pointerSensitivity
-        
+
         if (!returnDetectionArmed) {
             when (entryEdge) {
                 "Right" -> if (pointerX > returnArmDistancePx) returnDetectionArmed = true
@@ -248,11 +263,11 @@ object AndroidControlManager {
                 "Bottom" -> if (pointerY > returnArmDistancePx) returnDetectionArmed = true
             }
         }
-        
+
         var isReturning = false
         var outDeltaX = 0f
         var outDeltaY = 0f
-        
+
         // Clamp and calculate outward push
         if (pointerX < 0) {
             outDeltaX = -(deltaX * pointerSensitivity)
@@ -261,7 +276,7 @@ object AndroidControlManager {
             outDeltaX = deltaX * pointerSensitivity
             pointerX = width.toFloat() - 1f
         }
-        
+
         if (pointerY < 0) {
             outDeltaY = -(deltaY * pointerSensitivity)
             pointerY = 0f
@@ -269,7 +284,7 @@ object AndroidControlManager {
             outDeltaY = deltaY * pointerSensitivity
             pointerY = height.toFloat() - 1f
         }
-        
+
         // Check for return against the entered edge
         if (returnDetectionArmed) {
             var edgePush = 0f
@@ -285,11 +300,11 @@ object AndroidControlManager {
                 accumulatedReturnDelta = 0f
             }
         }
-        
+
         if (returnDetectionArmed && accumulatedReturnDelta >= returnPushThreshold) {
             isReturning = true
         }
-        
+
         if (isReturning && !disableAutomaticReturn) {
             handleHandoffEnd(currentSessionId)
             onRequestHandoffEnd?.invoke()
@@ -308,7 +323,7 @@ object AndroidControlManager {
                 // Execute Tap
                 val mapper = coordinateMapper ?: return
                 // Retrieve current cursor position implicitly by maintaining state,
-                // or just relying on the last known MouseMove. 
+                // or just relying on the last known MouseMove.
                 // For a robust implementation, we should store currentPixelX/Y in ControlManager.
             }
         } else if (button == "Right" || button == "Middle") {
@@ -324,12 +339,12 @@ object AndroidControlManager {
 
     fun handleMouseMoveWithState(normalizedX: Double, normalizedY: Double, deltaX: Int, deltaY: Int) {
         if (currentState != ControlState.Controlling || isManuallyStopped) return
-        
+
         handleMouseMove(normalizedX, normalizedY, deltaX, deltaY)
-        
+
         currentPixelX = pointerX.toInt()
         currentPixelY = pointerY.toInt()
-        
+
         val now = System.currentTimeMillis()
         if (now - lastLogTimeMs > 1000) {
             Log.d("AndroidControlManager", "[INPUT] MouseMove dx=$deltaX dy=$deltaY rx=$pointerX ry=$pointerY")
@@ -382,15 +397,15 @@ object AndroidControlManager {
     private var altPressed = false
     private var winPressed = false
 
-    // Update modifiers when a key down or up comes in, but currently the protocol doesn't send 
+    // Update modifiers when a key down or up comes in, but currently the protocol doesn't send
     // modifier states directly unless we track them, or wait, the protocol sends INPUT_KEY_DOWN.
     // Wait, the new payload has Modifiers, but in handleKeyDown we only get vkCode currently?
-    // Let's modify InputSessionManager.kt to send modifiers as well if needed. 
+    // Let's modify InputSessionManager.kt to send modifiers as well if needed.
     // Actually, we can just intercept the vkCode for Ctrl (0x11).
-    
+
     fun handleKeyDown(vkCode: Int) {
         if (currentState != ControlState.Controlling || isManuallyStopped) return
-        
+
         if (vkCode == 0x11 || vkCode == 0xA2 || vkCode == 0xA3) { // VK_CONTROL, LCONTROL, RCONTROL
             ctrlPressed = true
             return
@@ -409,7 +424,7 @@ object AndroidControlManager {
                 if (actionId == android.R.id.copy || actionId == android.R.id.paste) {
                     Log.d("AndroidControlManager", "[KEYBOARD] ${if (actionId == android.R.id.copy) "COPY" else "PASTE"} shortcut triggered.")
                 }
-                
+
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                     val ic = accessibilityService?.inputMethod?.currentInputConnection
                     if (ic != null) {
@@ -417,7 +432,7 @@ object AndroidControlManager {
                         return
                     }
                 }
-                
+
                 com.example.ezacrosscontrol.control.keyboard.EZAcrossInputMethodService.performContextMenuAction(actionId)
                 return
             }
