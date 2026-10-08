@@ -154,7 +154,14 @@
       "Light Theme": "Light Theme",
       "Dark Theme": "Dark Theme",
       "Minimize": "Minimize",
-      "Hide To Tray": "Hide To Tray"
+      "Hide To Tray": "Hide To Tray",
+      "Local Server": "Local server",
+      "Off": "Off",
+      "Connected": "Connected",
+      "Started": "Started",
+      "Port Permission Required": "Windows permission is required to configure this port. Start the server again and authorize the Windows prompt.",
+      "Server Waiting": "Waiting",
+      "Authorize LAN Port": "Configure TCP port {0} for EZ Across Control on private local networks? Windows will request administrator permission next."
     },
     "pt-BR": {
       "Connection Status": "Estado da Conexão",
@@ -264,7 +271,14 @@
       "Light Theme": "Tema Claro",
       "Dark Theme": "Tema Escuro",
       "Minimize": "Minimizar",
-      "Hide To Tray": "Ocultar na Bandeja"
+      "Hide To Tray": "Ocultar na Bandeja",
+      "Local Server": "Servidor local",
+      "Off": "desligado",
+      "Connected": "conectado",
+      "Started": "Iniciado",
+      "Port Permission Required": "É necessária a autorização do Windows para configurar esta porta. Inicie o servidor novamente e autorize a solicitação do Windows.",
+      "Server Waiting": "aguardando",
+      "Authorize LAN Port": "Configurar a porta TCP {0} para o EZ Across Control na rede local privada? O Windows pedirá a autorização de administrador em seguida."
     },
     "es": {
       "Connection Status": "Estado de Conexión",
@@ -374,7 +388,14 @@
       "Light Theme": "Tema Claro",
       "Dark Theme": "Tema Oscuro",
       "Minimize": "Minimizar",
-      "Hide To Tray": "Ocultar en Bandeja"
+      "Hide To Tray": "Ocultar en Bandeja",
+      "Local Server": "Servidor local",
+      "Off": "apagado",
+      "Connected": "conectado",
+      "Started": "Iniciado",
+      "Port Permission Required": "Se necesita autorización de Windows para configurar este puerto. Inicie el servidor y autorice la solicitud de Windows.",
+      "Server Waiting": "Esperando",
+      "Authorize LAN Port": "¿Configurar el puerto TCP {0} para EZ Across Control en redes locales privadas? Windows solicitará permiso de administrador."
     },
     "ja": {
       "Connection Status": "接続状態",
@@ -484,7 +505,14 @@
       "Light Theme": "ライトテーマ",
       "Dark Theme": "ダークテーマ",
       "Minimize": "最小化",
-      "Hide To Tray": "トレイに隠す"
+      "Hide To Tray": "トレイに隠す",
+      "Local Server": "ローカルサーバー",
+      "Off": "停止中",
+      "Connected": "接続済み",
+      "Started": "起動済み",
+      "Port Permission Required": "このポートの設定にはWindowsの許可が必要です。サーバーを再起動し、Windowsの確認画面で許可してください。",
+      "Server Waiting": "待機中",
+      "Authorize LAN Port": "プライベートLANでEZ Across ControlのTCPポート{0}を設定しますか？ 次にWindowsが管理者の許可を求めます。"
     },
     "it": {
       "Connection Status": "Stato Connessione",
@@ -594,7 +622,14 @@
       "Light Theme": "Tema Chiaro",
       "Dark Theme": "Tema Scuro",
       "Minimize": "Riduci a Icona",
-      "Hide To Tray": "Nascondi nella Tray"
+      "Hide To Tray": "Nascondi nella Tray",
+      "Local Server": "Server locale",
+      "Off": "spento",
+      "Connected": "connesso",
+      "Started": "Avviato",
+      "Port Permission Required": "È necessaria l’autorizzazione di Windows per configurare questa porta. Avviare il server e autorizzare la richiesta di Windows.",
+      "Server Waiting": "In Attesa",
+      "Authorize LAN Port": "Configurare la porta TCP {0} per EZ Across Control sulle reti locali private? Windows richiederà il permesso di amministratore."
     },
     "fr": {
       "Connection Status": "État de Connexion",
@@ -704,7 +739,14 @@
       "Light Theme": "Thème Clair",
       "Dark Theme": "Thème Sombre",
       "Minimize": "Réduire",
-      "Hide To Tray": "Masquer dans la Zone de Notification"
+      "Hide To Tray": "Masquer dans la Zone de Notification",
+      "Local Server": "Serveur local",
+      "Off": "arrêté",
+      "Connected": "connecté",
+      "Started": "Démarré",
+      "Port Permission Required": "Une autorisation Windows est nécessaire pour configurer ce port. Démarrez le serveur et autorisez la demande Windows.",
+      "Server Waiting": "En Attente",
+      "Authorize LAN Port": "Configurer le port TCP {0} pour EZ Across Control sur les réseaux locaux privés ? Windows demandera une autorisation administrateur."
     },
     "de": {
       "Connection Status": "Verbindungsstatus",
@@ -814,7 +856,14 @@
       "Light Theme": "Helles Design",
       "Dark Theme": "Dunkles Design",
       "Minimize": "Minimieren",
-      "Hide To Tray": "Im Tray Ausblenden"
+      "Hide To Tray": "Im Tray Ausblenden",
+      "Local Server": "Lokaler Server",
+      "Off": "ausgeschaltet",
+      "Connected": "verbunden",
+      "Started": "Gestartet",
+      "Port Permission Required": "Für diesen Port ist eine Windows-Berechtigung erforderlich. Starten Sie den Server und bestätigen Sie die Windows-Abfrage.",
+      "Server Waiting": "Warten",
+      "Authorize LAN Port": "TCP-Port {0} für EZ Across Control in privaten lokalen Netzwerken konfigurieren? Windows fordert anschließend Administratorrechte an."
     },
     "zh-CN": {
       "Connection Status": "连接状态",
@@ -924,7 +973,14 @@
       "Light Theme": "浅色主题",
       "Dark Theme": "深色主题",
       "Minimize": "最小化",
-      "Hide To Tray": "隐藏到托盘"
+      "Hide To Tray": "隐藏到托盘",
+      "Local Server": "本地服务器",
+      "Off": "已关闭",
+      "Connected": "已连接",
+      "Started": "已启动",
+      "Port Permission Required": "配置此端口需要Windows授权。请重新启动服务器并批准Windows提示。",
+      "Server Waiting": "等待中",
+      "Authorize LAN Port": "是否为EZ Across Control配置私人局域网TCP端口{0}？ Windows随后将请求管理员授权。"
     },
     "vi": {
       "Connection Status": "Trạng Thái Kết Nối",
@@ -1034,7 +1090,14 @@
       "Light Theme": "Giao Diện Sáng",
       "Dark Theme": "Giao Diện Tối",
       "Minimize": "Thu Nhỏ",
-      "Hide To Tray": "Ẩn Vào Khay"
+      "Hide To Tray": "Ẩn Vào Khay",
+      "Local Server": "Máy chủ cục bộ",
+      "Off": "đã tắt",
+      "Connected": "đã kết nối",
+      "Started": "Đã khởi động",
+      "Port Permission Required": "Cần cấp quyền Windows để cấu hình cổng này. Hãy khởi động lại máy chủ và chấp nhận yêu cầu Windows.",
+      "Server Waiting": "Đang Chờ",
+      "Authorize LAN Port": "Cấu hình cổng TCP {0} cho EZ Across Control trên mạng nội bộ riêng? Windows sẽ yêu cầu quyền quản trị viên."
     },
     "ko": {
       "Connection Status": "연결 상태",
@@ -1144,7 +1207,14 @@
       "Light Theme": "밝은 테마",
       "Dark Theme": "어두운 테마",
       "Minimize": "최소화",
-      "Hide To Tray": "트레이로 숨기기"
+      "Hide To Tray": "트레이로 숨기기",
+      "Local Server": "로컬 서버",
+      "Off": "꺼짐",
+      "Connected": "연결됨",
+      "Started": "시작됨",
+      "Port Permission Required": "이 포트를 설정하려면 Windows 권한이 필요합니다. 서버를 다시 시작하고 Windows 요청을 승인하세요.",
+      "Server Waiting": "대기 중",
+      "Authorize LAN Port": "개인 로컬 네트워크에서 EZ Across Control의 TCP 포트 {0}을 설정할까요? 다음에 Windows가 관리자 권한을 요청합니다."
     },
     "ar": {
       "Connection Status": "حالة الاتصال",
@@ -1254,7 +1324,14 @@
       "Light Theme": "المظهر الفاتح",
       "Dark Theme": "المظهر الداكن",
       "Minimize": "تصغير",
-      "Hide To Tray": "إخفاء في علبة النظام"
+      "Hide To Tray": "إخفاء في علبة النظام",
+      "Local Server": "الخادم المحلي",
+      "Off": "متوقف",
+      "Connected": "متصل",
+      "Started": "تم التشغيل",
+      "Port Permission Required": "يلزم إذن Windows لإعداد هذا المنفذ. ابدأ تشغيل الخادم مجددًا ووافق على طلب Windows.",
+      "Server Waiting": "انتظار",
+      "Authorize LAN Port": "هل تريد إعداد منفذ TCP {0} لتطبيق EZ Across Control على الشبكات المحلية الخاصة؟ سيطلب Windows إذن المسؤول بعد ذلك."
     }
   }
 }

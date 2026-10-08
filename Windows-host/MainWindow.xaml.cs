@@ -82,6 +82,7 @@ namespace WindowsHost
         private double _heightBeforeAdvanced;
         private double _topBeforeAdvanced;
         private bool _updatingLanguage;
+        private bool _startingServer;
 
 
         public MainWindow()
@@ -92,13 +93,11 @@ namespace WindowsHost
             CmbLanguage.SelectedValue = Localization.Preference;
             ApplyLanguageLayout();
             TxtLocalIP.Text = GetLocalIPAddress();
-            TxtPort.Text = Config.DefaultPort.ToString();
+            _appSettings = ConfigManager.Load();
+            TxtPort.Text = (LanPortPermission.IsValidPort(_appSettings.ServerPort) ? _appSettings.ServerPort : Config.DefaultPort).ToString();
             UpdateThemeButtons();
             
-            // Auto-start the server
-            BtnStart_Click(null, null);
-
-            _appSettings = ConfigManager.Load();
+            RefreshServerVisuals();
 
             _inputCaptureService = new WindowsInputCaptureService();
             _inputCaptureService.InputEventCaptured += InputCaptureService_InputEventCaptured;
@@ -232,6 +231,7 @@ namespace WindowsHost
                 BtnStartEngine.IsEnabled = false;
                 UpdateEngineBadge();
                 Log("Waiting for Connect in the Android app. Engine starts automatically after HELLO.");
+                BtnStart_Click(this, new RoutedEventArgs());
             };
 
         }
@@ -300,7 +300,7 @@ namespace WindowsHost
             labelWidth = Math.Max(labelWidth, new[] { "Running", "Stopped", "Error" }
                 .Max(x => MeasureLabel(x, 22, FontWeights.Bold)) + 14);
             System.Windows.Application.Current.Resources["FieldLabelWidth"] = new GridLength(labelWidth);
-            BtnStart.Width = MeasureLabel("Start Server", FontSize, FontWeights.SemiBold) + 30;
+            BtnStart.Width = new[] { "Start Server", "Started" }.Max(x => MeasureLabel(x, FontSize, FontWeights.SemiBold)) + 30;
             BtnStop.Width = Math.Max(52, MeasureLabel("Stop", FontSize, FontWeights.SemiBold) + 30);
             CmbActiveEdge.Width = Math.Max(130, new[] { "Right", "Left", "Top", "Bottom", "Disabled" }
                 .Max(x => MeasureLabel(x, FontSize, FontWeights.Normal)) + 44);
@@ -428,65 +428,93 @@ namespace WindowsHost
             });
         }
 
-        private void BtnStart_Click(object sender, RoutedEventArgs e)
+        private void RefreshServerVisuals()
         {
-            if (!int.TryParse(TxtPort.Text, out int port))
+            bool running = _listener?.IsListening == true && !_startingServer;
+            var state = running ? (_androidHandshakeComplete ? "Connected" : "Server Waiting") : "Off";
+            BtnStart.SetResourceReference(System.Windows.Controls.ContentControl.ContentProperty, running ? "Ui.Started" : "Ui.Start Server");
+            BtnStart.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+            Localization.SetStatus(TxtServerStatus, running ? "Running" : "Stopped");
+            TxtServerStatus.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            Localization.SetStatus(TxtLocalServerState, state);
+            TxtLocalServerState.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                !running ? "ErrorPrimaryBrush" : _androidHandshakeComplete ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
+            BtnStart.IsEnabled = !running && !_startingServer;
+            BtnStop.IsEnabled = running;
+            TxtPort.IsEnabled = !running && !_startingServer;
+        }
+
+        private async void BtnStart_Click(object sender, RoutedEventArgs e)
+        {
+            if (_startingServer || _listener?.IsListening == true) return;
+            if (!int.TryParse(TxtPort.Text, out int port) || !LanPortPermission.IsValidPort(port))
             {
                 MessageBox.Show(Localization.T("Invalid port"));
                 return;
             }
-
-            _cts = new CancellationTokenSource();
-            _listener = new HttpListener();
-            
+            _startingServer = true;
+            RefreshServerVisuals();
             string prefix = $"http://+:{port}/";
-            Log($"[SERVER] Starting...");
-            Log($"[SERVER] Prefix={prefix}");
-            Log($"[SERVER] Port={port}");
-
             try
             {
+                bool needsPermission = !LanPortPermission.HasFirewallRule(port, Environment.ProcessPath!);
+                _listener = new HttpListener();
                 _listener.Prefixes.Add(prefix);
-                _listener.Start();
-                Log($"[SERVER] Listener.IsListening={_listener.IsListening}");
+                try { _listener.Start(); }
+                catch (HttpListenerException ex) when (ex.ErrorCode == 5) { needsPermission = true; }
+                if (needsPermission)
+                {
+                    _listener.Close();
+                    _listener = null;
+                    if (MessageBox.Show(this, string.Format(Localization.T("Authorize LAN Port"), port),
+                        Localization.T("Administrator Required"), MessageBoxButton.OKCancel, MessageBoxImage.Information)
+                        != MessageBoxResult.OK) return;
+                    Log("[SERVER] Requesting Windows permission for the selected LAN port.");
+                    if (!await LanPortPermission.RequestAsync(port))
+                    {
+                        Log("[SERVER] Port configuration was not authorized or failed.");
+                        MessageBox.Show(Localization.T("Port Permission Required"));
+                        return;
+                    }
+                    if (_closing) return;
+                    if (!LanPortPermission.HasFirewallRule(port, Environment.ProcessPath!))
+                        throw new InvalidOperationException("The selected port has no matching private LAN firewall rule.");
+                    _listener = new HttpListener();
+                    _listener.Prefixes.Add(prefix);
+                    _listener.Start();
+                }
+                _cts = new CancellationTokenSource();
+                _appSettings.ServerPort = port;
+                ConfigManager.Save(_appSettings);
+                _startingServer = false;
                 StartListening(prefix);
-            }
-            catch (HttpListenerException ex) when (ex.ErrorCode == 5)
-            {
-                Localization.SetStatus(TxtServerStatus, "Error");
-                Log($"[SERVER] Error: Access Denied (HTTP 400 cause). You MUST run EZ Across Control as Administrator to listen on LAN IP.");
-                MessageBox.Show(Localization.T("Please restart the application as Administrator to accept LAN connections."), Localization.T("Administrator Required"));
-                _listener?.Close();
-                _listener = null;
             }
             catch (Exception ex)
             {
-                Localization.SetStatus(TxtServerStatus, "Error");
                 Log($"[SERVER] Error starting server: {ex.Message}");
                 _listener?.Close();
                 _listener = null;
+                MessageBox.Show(Localization.T("Port Permission Required"));
             }
+            finally { _startingServer = false; RefreshServerVisuals(); }
         }
 
         private void StartListening(string prefix)
         {
-            Localization.SetStatus(TxtServerStatus, "Running");
-            BtnStart.IsEnabled = false;
-            BtnStop.IsEnabled = true;
-            TxtPort.IsEnabled = false;
+            RefreshServerVisuals();
             Log($"Server started on {prefix}");
             
-            _ = AcceptConnectionsAsync();
-            _ = NetworkWriterLoop();
+            _ = AcceptConnectionsAsync(_listener!, _cts!.Token);
+            _ = NetworkWriterLoop(_cts.Token);
         }
 
-        private async Task AcceptConnectionsAsync()
+        private async Task AcceptConnectionsAsync(HttpListener listener, CancellationToken token)
         {
-            while (!_cts.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    var context = await _listener.GetContextAsync();
+                    var context = await listener.GetContextAsync();
 
                     if (!context.Request.IsWebSocketRequest && context.Request.Url?.AbsolutePath == "/readiness")
                     {
@@ -583,12 +611,13 @@ namespace WindowsHost
 
         private async Task ReceiveLoopAsync(WebSocket socket)
         {
+            var token = _cts!.Token;
             var buffer = new byte[4096];
             try
             {
-                while (socket.State == WebSocketState.Open && !_cts.IsCancellationRequested)
+                while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
                 {
-                    var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
+                    var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
                         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnected", CancellationToken.None);
@@ -620,6 +649,7 @@ namespace WindowsHost
                     Dispatcher.Invoke(() => {
                         if (_currentSocket != null) return;
                         TxtDeviceName.Text = "-";
+                        RefreshServerVisuals();
                         UpdateTransportDisplay();
                         _sessionManager.SetState(InputSessionState.Disconnected);
                     });
@@ -657,6 +687,7 @@ namespace WindowsHost
                         });
                     }
                     _androidHandshakeComplete = true;
+                    Dispatcher.InvokeAsync(RefreshServerVisuals);
                     _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
                     Dispatcher.InvokeAsync(async () => await StartEngineAsync());
@@ -788,9 +819,9 @@ namespace WindowsHost
             }
         }
 
-        private async Task NetworkWriterLoop()
+        private async Task NetworkWriterLoop(CancellationToken token)
         {
-            while (!_cts?.IsCancellationRequested ?? true)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
@@ -805,8 +836,8 @@ namespace WindowsHost
                     }
                     else
                     {
-                        var priTask = _priorityNetworkQueue.Reader.WaitToReadAsync(_cts?.Token ?? CancellationToken.None).AsTask();
-                        var stdTask = _standardNetworkQueue.Reader.WaitToReadAsync(_cts?.Token ?? CancellationToken.None).AsTask();
+                        var priTask = _priorityNetworkQueue.Reader.WaitToReadAsync(token).AsTask();
+                        var stdTask = _standardNetworkQueue.Reader.WaitToReadAsync(token).AsTask();
                         await Task.WhenAny(priTask, stdTask);
                         continue;
                     }
@@ -814,7 +845,7 @@ namespace WindowsHost
                     if (message != null && _currentSocket != null && _currentSocket.State == WebSocketState.Open)
                     {
                         var bytes = Encoding.UTF8.GetBytes(message);
-                        await _currentSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts?.Token ?? CancellationToken.None);
+                        await _currentSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, token);
                     }
                 }
                 catch (OperationCanceledException) { break; }
@@ -861,10 +892,11 @@ namespace WindowsHost
                 _listener.Close();
                 _listener = null;
                 
-                Localization.SetStatus(TxtServerStatus, "Stopped");
-                BtnStart.IsEnabled = true;
-                BtnStop.IsEnabled = false;
-                TxtPort.IsEnabled = true;
+                _androidHandshakeComplete = false;
+                SafeReleaseInputOwnership("Server stopped");
+                _currentSocket?.Abort();
+                _currentSocket = null;
+                RefreshServerVisuals();
                 // TxtAndroidStatus.Text = "Disconnected";
                 TxtDeviceName.Text = "-";
                 Log("Server stopped.");

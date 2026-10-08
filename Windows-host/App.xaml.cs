@@ -13,6 +13,11 @@ public partial class App : System.Windows.Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        if (e.Args.Length == 2 && e.Args[0] == "--configure-lan-port")
+        {
+            Shutdown(int.TryParse(e.Args[1], out var port) ? LanPortPermission.Configure(port) : 2);
+            return;
+        }
         base.OnStartup(e);
 
         // Global Exception Handlers
@@ -24,6 +29,7 @@ public partial class App : System.Windows.Application
 
         ThemeManager.Initialize();
         Localization.Initialize();
+        new MainWindow().Show();
     }
 
     private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)

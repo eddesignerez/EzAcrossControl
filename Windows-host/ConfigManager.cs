@@ -7,6 +7,7 @@ namespace WindowsHost
 {
     public class AppSettings
     {
+        public int ServerPort { get; set; } = Config.DefaultPort;
         public EdgeOptions EdgeTransition { get; set; } = new EdgeOptions();
         public WindowsHost.Engine.ConnectionMode ConnectionMode { get; set; } = WindowsHost.Engine.ConnectionMode.Auto;
         // Theme could be migrated here later

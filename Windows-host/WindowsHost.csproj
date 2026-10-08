@@ -2,6 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <AssemblyName>EzAcrossControl</AssemblyName>
+    <Product>EZ Across Control</Product>
+    <AssemblyTitle>EZ Across Control</AssemblyTitle>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

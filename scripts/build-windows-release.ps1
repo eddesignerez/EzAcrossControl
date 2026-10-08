@@ -1,4 +1,5 @@
 param(
+    [string]$Version = '1.1.1',
     [string]$InnoCompiler = $env:INNO_COMPILER,
     [string]$MingwRoot = 'C:\msys64\mingw64',
     [string]$AdbDirectory = 'C:\Android\platform-tools'
@@ -9,7 +10,7 @@ $bundle = Join-Path $root '.publish-staging/windows'
 $output = Join-Path $root 'release-output'
 if (Test-Path $bundle) { throw 'Use an empty Windows staging directory to avoid stale release files.' }
 New-Item -ItemType Directory -Force $bundle,$output | Out-Null
-& dotnet publish (Join-Path $root 'Windows-host/WindowsHost.csproj') -c Release -r win-x64 --self-contained true -p:Version=1.1.0 -p:DebugType=None -p:DebugSymbols=false -o $bundle --nologo -v quiet
+& dotnet publish (Join-Path $root 'Windows-host/WindowsHost.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false -o $bundle --nologo -v quiet
 if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed' }
 $runtime = Join-Path $bundle 'scrcpy'
 New-Item -ItemType Directory -Force $runtime | Out-Null
@@ -49,7 +50,7 @@ $portSource = Get-Content -Raw (Join-Path $root 'Windows-host/Config.cs')
 if ($portSource -notmatch 'DefaultPort\s*=\s*(\d+)') { throw 'Default port missing' }
 $port = $Matches[1]
 if (-not (Test-Path $InnoCompiler)) { throw 'Set INNO_COMPILER to the official ISCC.exe path' }
-& $InnoCompiler "/DBundle=$bundle" "/DOutput=$output" "/DPort=$port" (Join-Path $root 'packaging/windows-installer.iss')
+& $InnoCompiler "/DBundle=$bundle" "/DOutput=$output" "/DPort=$port" "/DVersion=$Version" (Join-Path $root 'packaging/windows-installer.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
-Compress-Archive -LiteralPath $bundle -DestinationPath (Join-Path $output 'EZAcrossControl-1.1.0-windows-x64-portable.zip') -CompressionLevel Optimal
+Compress-Archive -LiteralPath $bundle -DestinationPath (Join-Path $output "EZAcrossControl-$Version-windows-x64-portable.zip") -CompressionLevel Optimal
 Write-Host "Native dependency closure: $($visited.Count) imports verified"

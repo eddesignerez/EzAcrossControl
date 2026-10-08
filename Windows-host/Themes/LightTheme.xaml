@@ -29,6 +29,8 @@
     <SolidColorBrush x:Key="OnBrandBrush" Color="{StaticResource OnBrandColor}" />
     
     <SolidColorBrush x:Key="SuccessPrimaryBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="WarningPrimaryBrush" Color="#8A650C" />
+    <SolidColorBrush x:Key="ErrorPrimaryBrush" Color="#B63E3E" />
     <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="{StaticResource SurfaceSoftColor}" />
     
     <SolidColorBrush x:Key="InfoPrimaryBrush" Color="#0052CC" />
