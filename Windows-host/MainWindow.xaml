@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="EZ Across Control" Height="570" Width="1040" MinHeight="550" MinWidth="900"
+        Title="EZ Across Control" Height="545" Width="740" MinHeight="535" MinWidth="740"
         WindowStyle="None" ResizeMode="CanResize" WindowStartupLocation="CenterScreen"
         Icon="/WindowsHost;component/Assets/EzAcrossControl.png"
         Background="{DynamicResource BackgroundBrush}"
@@ -17,7 +17,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="13"/>
-            <Setter Property="Padding" Value="17"/>
+            <Setter Property="Padding" Value="16"/>
         </Style>
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="17"/>
@@ -149,9 +149,9 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource BackgroundBrush}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="22,18,22,18" MaxWidth="1220">
-                <Grid Margin="0,0,0,17">
+        <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="MainContent" Margin="16,16,16,16" MaxWidth="1220">
+                <Grid Margin="0,0,-6,14">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Border Background="Transparent" MouseLeftButtonDown="Header_DragMove" Cursor="SizeAll">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -191,22 +191,22 @@
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="138">
+                    <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="130">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Connection Status" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,18"/>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.ColumnSpan="2" Text="Connection Status" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
                             <TextBlock x:Name="TxtServerStatus" Grid.Row="1" Text="Stopped" FontSize="25" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Text="Local Server For Your Android Device" Style="{StaticResource LabelStyle}" Margin="0,13,0,0"/>
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="Local Server For Your Android Device" Style="{StaticResource LabelStyle}" Margin="0,10,0,0"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
                                 <Button x:Name="BtnStart" Content="Start Server" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
                                 <Button x:Name="BtnStop" Content="Stop" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="138">
+                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="130">
                         <StackPanel>
-                            <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,18"/>
+                            <TextBlock Text="Network" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
                             <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Local IP" Style="{StaticResource LabelStyle}"/>
                                 <TextBlock x:Name="TxtLocalIP" Grid.Column="1" Text="Unknown" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
@@ -221,9 +221,9 @@
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="218">
+                    <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="206">
                         <StackPanel>
-                            <TextBlock Text="Android Device" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,16"/>
+                            <TextBlock Text="Android Device" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
                             <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Device" Style="{StaticResource LabelStyle}"/>
                                 <TextBlock x:Name="TxtDeviceName" Grid.Column="1" Text="-" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
@@ -248,10 +248,10 @@
                             </WrapPanel>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="218">
+                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="206">
                         <StackPanel>
-                            <TextBlock Text="Screen Edge" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,15"/>
-                            <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Screen Edge" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Android Position" Style="{StaticResource LabelStyle}"/>
                                 <ComboBox x:Name="CmbActiveEdge" Grid.Column="1" Width="155" HorizontalAlignment="Left" SelectionChanged="CmbActiveEdge_SelectionChanged">
                                     <ComboBoxItem Content="Left" Tag="Left"/><ComboBoxItem Content="Right" Tag="Right"/>
@@ -259,11 +259,11 @@
                                     <ComboBoxItem Content="Disabled" Tag="Disabled"/>
                                 </ComboBox>
                             </Grid>
-                            <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Sensitivity" Style="{StaticResource LabelStyle}"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal"><TextBox x:Name="TxtEdgeThreshold" Style="{StaticResource NumericFieldStyle}" TextChanged="TxtEdgeOptions_TextChanged"/><TextBlock Text="px" Style="{StaticResource LabelStyle}" Margin="8,0,0,0"/></StackPanel>
                             </Grid>
-                            <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="155"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="Activation Delay" Style="{StaticResource LabelStyle}"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal"><TextBox x:Name="TxtEdgeDelay" Style="{StaticResource NumericFieldStyle}" TextChanged="TxtEdgeOptions_TextChanged"/><TextBlock Text="ms" Style="{StaticResource LabelStyle}" Margin="8,0,0,0"/></StackPanel>
                             </Grid>

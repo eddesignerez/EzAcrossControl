@@ -58,6 +58,7 @@ namespace WindowsHost
         private bool _androidHandshakeComplete;
         private AndroidDevice? _activeDevice;
         private string _engineTransport = "-";
+        private string? _lastPublishedSessionStatus;
         private IntPtr _windowToRestoreAfterNativeCapture;
         private NativeMethods.POINT? _pointerBeforeCapture;
         private ScreenEdge _edgeBeforeCapture;
@@ -170,6 +171,7 @@ namespace WindowsHost
                         break;
                 }
                 UpdateEngineBadge();
+                UpdateTransportDisplay();
             });
 
             _scrcpyEngine.Error += (s, msg) => Dispatcher.InvokeAsync(() => {
@@ -271,8 +273,10 @@ namespace WindowsHost
                 _heightBeforeAdvanced = Height;
                 _topBeforeAdvanced = Top;
                 AdvancedPanel.Visibility = Visibility.Visible;
+                UpdateLayout();
                 var workArea = SystemParameters.WorkArea;
-                Height = Math.Min(workArea.Height - 8, Math.Max(Height + 330, 950));
+                var contentHeight = MainContent.ActualHeight + MainContent.Margin.Top + MainContent.Margin.Bottom;
+                Height = Math.Min(workArea.Height - 8, Math.Max(_heightBeforeAdvanced, contentHeight));
                 Top = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - Height));
             }
         }
@@ -548,6 +552,7 @@ namespace WindowsHost
                     Log($"Received HELLO from {deviceName} (v{clientVersion})");
 
                     _androidHandshakeComplete = true;
+                    _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
                     Dispatcher.InvokeAsync(async () => await StartEngineAsync());
 
@@ -1050,6 +1055,21 @@ namespace WindowsHost
             TxtTransport.Text = _engineTransport;
             BtnCaptureAndroid.IsEnabled = IsAndroidCompanionConnected()
                 && _scrcpyEngine.State == ScrcpyEngineState.Ready;
+            var signature = _engineTransport + ":" + _scrcpyEngine.State;
+            if (IsAndroidCompanionConnected() && signature != _lastPublishedSessionStatus)
+            {
+                _lastPublishedSessionStatus = signature;
+                SendMessage(_currentSocket!, JsonSerializer.Serialize(new MessageEnvelope
+                {
+                    Type = "SESSION_STATUS",
+                    ProtocolVersion = 1,
+                    Payload = new
+                    {
+                        ControlTransport = _engineTransport == "-" ? null : _engineTransport,
+                        EngineState = _scrcpyEngine.State.ToString()
+                    }
+                }));
+            }
         }
 
         private bool UsesNativeScrcpyInput()

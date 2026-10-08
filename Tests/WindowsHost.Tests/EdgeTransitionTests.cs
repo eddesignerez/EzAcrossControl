@@ -69,8 +69,13 @@ namespace WindowsHost.Tests
         }
 
         [Fact]
-        public void RightEdge_TransitionsToCandidate_AndArmed()
+        public async Task RightEdge_TransitionsToCandidate_AndArmed()
         {
+            var armed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _service.StateChanged += (_, e) =>
+            {
+                if (e.State == EdgeState.Armed) armed.TrySetResult(true);
+            };
             _service.UpdateOptions(new EdgeOptions { ActiveEdge = ScreenEdge.Right, EdgeThresholdPixels = 4, EdgeActivationDelayMs = 50 });
             _service.Start();
 
@@ -82,8 +87,8 @@ namespace WindowsHost.Tests
 
             Assert.Contains(EdgeState.Candidate, _stateChanges);
 
-            // Wait for delay
-            System.Threading.Thread.Sleep(60);
+            // Wait for the actual timer-driven transition rather than a fixed sleep.
+            await armed.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
             // Trigger another move to evaluate delay
             _mockInput.RaiseEvent(new MouseInputEvent(InputEventType.MouseMove, false, 1919, 500, 0));

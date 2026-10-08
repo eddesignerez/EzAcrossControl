@@ -68,6 +68,24 @@ Used for latency measurement.
 }
 ```
 
+#### SESSION_STATUS
+Sent by the Host after HELLO and whenever its control engine or selected transport changes.
+The companion WebSocket remains on the LAN. ControlTransport describes the actual
+scrcpy input transport selected by the Host, not the companion socket.
+```json
+{
+  "Type": "SESSION_STATUS",
+  "ProtocolVersion": 1,
+  "Payload": {
+    "ControlTransport": "Wi-Fi",
+    "EngineState": "Ready"
+  }
+}
+```
+ControlTransport is "USB", "Wi-Fi", or null when the control engine is unavailable.
+The client displays a green transport label only for a confirmed USB or Wi-Fi value.
+Older clients may ignore this optional status message.
+
 ### Input Injection (Phase 2.3+)
 
 Input injection uses normalized coordinates `[0.0, 1.0]` for mouse positions. The normalization is relative to the *entire virtual screen bounding box* of the Host.
