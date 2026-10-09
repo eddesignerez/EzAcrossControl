@@ -1,0 +1,31 @@
+diff --git a/server/src/main/java/com/genymobile/scrcpy/control/UhidManager.java b/server/src/main/java/com/genymobile/scrcpy/control/UhidManager.java
+index 20532c0..2d0f5a1 100644
+--- a/server/src/main/java/com/genymobile/scrcpy/control/UhidManager.java
++++ b/server/src/main/java/com/genymobile/scrcpy/control/UhidManager.java
+@@ -69,7 +69,7 @@ public final class UhidManager {
+                 }
+ 
+                 String phys = mustUseInputPort() ? INPUT_PORT : null;
+-                byte[] req = buildUhidCreate2Req(vendorId, productId, name, reportDesc, phys);
++                byte[] req = buildUhidCreate2Req(id, vendorId, productId, name, reportDesc, phys);
+                 Os.write(fd, req, 0, req.length);
+ 
+                 if (firstDevice) {
+@@ -162,7 +162,7 @@ public final class UhidManager {
+         }
+     }
+ 
+-    private static byte[] buildUhidCreate2Req(int vendorId, int productId, String name, byte[] reportDesc, String phys) {
++    private static byte[] buildUhidCreate2Req(int id, int vendorId, int productId, String name, byte[] reportDesc, String phys) {
+         /*
+          * struct uhid_event {
+          *     uint32_t type;
+@@ -202,7 +202,7 @@ public final class UhidManager {
+ 
+         buf.position(4 + 256);
+         buf.putShort((short) reportDesc.length);
+-        buf.putShort(BUS_VIRTUAL);
++        buf.putShort(id == 1 ? (short) 0x03 : BUS_VIRTUAL); // External emulated keyboard; mouse unchanged.
+         buf.putInt(vendorId);
+         buf.putInt(productId);
+         buf.putInt(0); // version

@@ -1,12 +1,12 @@
-# scripts/build-scrcpy-ezacross.ps1
+param([string]$SourceDirectory, [string]$ServerBuildDirectory)
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot\.." | Select-Object -ExpandProperty Path
-$ScrcpySrcDir = Join-Path $ProjectRoot "third_party\scrcpy-src"
+$ScrcpySrcDir = if ($SourceDirectory) { $SourceDirectory } else { Join-Path $ProjectRoot "third_party\scrcpy-src" }
 $PatchFile = Join-Path $ProjectRoot "patches\scrcpy\EZ_ACROSS_PATCH.patch"
-$ExpectedServerHash = "deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae" # Official v4.1 release asset SHA-256.
-$PrebuiltServerUrl = "https://github.com/Genymobile/scrcpy/releases/download/v4.1/scrcpy-server-v4.1"
-$BuildDir = Join-Path $ScrcpySrcDir "build-ezacross"
+$KeyboardPatch = Join-Path $ProjectRoot "patches\scrcpy\EXTERNAL_KEYBOARD_UHID.patch"
+$BuildDir = Join-Path $ScrcpySrcDir "build-ezacross-release"
+$ServerBuildDirectory = if ($ServerBuildDirectory) { $ServerBuildDirectory } else { Join-Path $ProjectRoot "work\scrcpy-server-build" }
 $BinDir = Join-Path $ProjectRoot "third_party\scrcpy-ezacross\bin"
 
 Write-Host "==================================================" -ForegroundColor Cyan
@@ -50,42 +50,40 @@ if (-Not (Test-Path $ScrcpySrcDir)) {
     git clone https://github.com/Genymobile/scrcpy.git $ScrcpySrcDir
 }
 Set-Location $ScrcpySrcDir
-git fetch origin --tags
-git checkout v4.1
-git reset --hard HEAD
-git clean -fd
+$tagCommit = git rev-parse 'v4.1^{commit}'
+$headCommit = git rev-parse HEAD
+if ($LASTEXITCODE -ne 0 -or $headCommit -ne $tagCommit) { throw 'Use a checkout of the scrcpy v4.1 tag.' }
+if (-not (Test-Path $PatchFile) -or -not (Test-Path $KeyboardPatch)) { throw 'Required scrcpy patch missing.' }
+git apply --reverse --check $PatchFile 2>$null
+$clientApplied = $LASTEXITCODE -eq 0
+git apply --reverse --check $KeyboardPatch 2>$null
+$keyboardApplied = $LASTEXITCODE -eq 0
+if ($clientApplied -ne $keyboardApplied) { throw 'Both scrcpy patches must be applied together.' }
+if (-not $clientApplied) {
+    if (git status --porcelain) { throw 'Use a clean scrcpy checkout or a detached worktree; existing changes are preserved.' }
+    git apply --check $PatchFile
+    if ($LASTEXITCODE -ne 0) { throw 'Client patch validation failed.' }
+    git apply --check $KeyboardPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Keyboard patch validation failed.' }
+    git apply $PatchFile
+    if ($LASTEXITCODE -ne 0) { throw 'Client patch failed.' }
+    git apply $KeyboardPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Keyboard patch failed.' }
+}
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "4. VALIDAR E APLICAR PATCH" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
-if (Test-Path $PatchFile) {
-    Write-Host "Checking patch..."
-    git apply --check $PatchFile
-    if ($LASTEXITCODE -ne 0) { throw "Patch validation failed! Run git apply --check manually to investigate." }
-    
-    Write-Host "Applying patch..."
-    git apply $PatchFile
-    if ($LASTEXITCODE -ne 0) { throw "Failed to apply patch." }
-} else {
-    throw "Patch file not found: $PatchFile"
-}
+Write-Host "Both scrcpy patches are applied." -ForegroundColor Green
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "5. BAIXAR PREBUILT SERVER 4.1" -ForegroundColor Cyan
+Write-Host "5. COMPILAR SERVER COM TECLADO EXTERNO" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
-$ServerDest = Join-Path $ScrcpySrcDir "scrcpy-server-v4.1"
-if (-Not (Test-Path $ServerDest)) {
-    Write-Host "Downloading $PrebuiltServerUrl..."
-    Invoke-WebRequest -Uri $PrebuiltServerUrl -OutFile $ServerDest
-}
-
-$ActualHash = (Get-FileHash $ServerDest -Algorithm SHA256).Hash.ToLower()
-if ($ActualHash -ne $ExpectedServerHash) {
-    throw "Server hash mismatch! Expected $ExpectedServerHash, got $ActualHash"
-}
-Write-Host "Server hash matched." -ForegroundColor Green
+$ServerDest = Join-Path $ScrcpySrcDir 'scrcpy-server-ezacross'
+& (Join-Path $PSScriptRoot 'build-scrcpy-server.ps1') -SourceDirectory $ScrcpySrcDir -BuildDirectory $ServerBuildDirectory -OutputPath $ServerDest
+if (-not (Test-Path $ServerDest)) { throw 'Server build failed.' }
 
 Write-Host "==================================================" -ForegroundColor Cyan
 Write-Host "6. BUILD DO CLIENTE (Meson/Ninja)" -ForegroundColor Cyan
@@ -96,8 +94,8 @@ $MsysServerDest = $ServerDest -replace '\\', '/' -replace 'c:', '/c'
 
 $BuildCmd = @"
 cd '$MsysSrcDir'
-meson setup build-ezacross -Dprebuilt_server=scrcpy-server-v4.1 -Dportable=true --buildtype release
-ninja -C build-ezacross
+meson setup build-ezacross-release -Dprebuilt_server=scrcpy-server-ezacross -Dportable=true --buildtype release
+ninja -C build-ezacross-release
 "@
 
 Set-Content -Path "build.sh" -Value $BuildCmd

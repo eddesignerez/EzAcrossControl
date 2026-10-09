@@ -3,7 +3,7 @@
 The Windows distribution includes .NET 8 (MIT), Android Platform Tools (notices distributed with the tools), and an adapted scrcpy runtime (Apache-2.0). scrcpy and its dependencies remain separate executables/libraries; their license terms apply to those components.
 
 - scrcpy upstream source: https://github.com/Genymobile/scrcpy/tree/v4.1
-- EZ Across Control modifications: `patches/scrcpy/EZ_ACROSS_PATCH.patch`
+- EZ Across Control modifications: `patches/scrcpy/EZ_ACROSS_PATCH.patch` and `patches/scrcpy/EXTERNAL_KEYBOARD_UHID.patch`
 - Rebuild procedure: `Docs/v2/build-scrcpy-windows.md`
 - MSYS2 runtime libraries, including FFmpeg, SDL3, libusb and their transitive dependencies: https://packages.msys2.org/
 - Exact MSYS2 source packages: https://github.com/msys2/MINGW-packages

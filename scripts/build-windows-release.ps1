@@ -1,12 +1,14 @@
 param(
-    [string]$Version = '1.1.1',
+    [string]$Version = '1.1.2',
     [string]$InnoCompiler = $env:INNO_COMPILER,
     [string]$MingwRoot = 'C:\msys64\mingw64',
-    [string]$AdbDirectory = 'C:\Android\platform-tools'
+    [string]$AdbDirectory = 'C:\Android\platform-tools',
+    [string]$NativeClient,
+    [string]$NativeServer
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$bundle = Join-Path $root '.publish-staging/windows'
+$bundle = Join-Path $root ".publish-staging/windows-$Version"
 $output = Join-Path $root 'release-output'
 if (Test-Path $bundle) { throw 'Use an empty Windows staging directory to avoid stale release files.' }
 New-Item -ItemType Directory -Force $bundle,$output | Out-Null
@@ -15,7 +17,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed' }
 $runtime = Join-Path $bundle 'scrcpy'
 New-Item -ItemType Directory -Force $runtime | Out-Null
 $native = Join-Path $root 'third_party/scrcpy-ezacross/bin'
-Copy-Item -LiteralPath (Join-Path $native 'scrcpy.exe'),(Join-Path $native 'scrcpy-server') -Destination $runtime
+if (-not $NativeClient) { $NativeClient = Join-Path $native 'scrcpy.exe' }
+if (-not $NativeServer) { $NativeServer = Join-Path $native 'scrcpy-server' }
+Copy-Item -LiteralPath $NativeClient -Destination (Join-Path $runtime 'scrcpy.exe')
+Copy-Item -LiteralPath $NativeServer -Destination (Join-Path $runtime 'scrcpy-server')
 foreach ($file in @('adb.exe','AdbWinApi.dll','AdbWinUsbApi.dll')) { Copy-Item -LiteralPath (Join-Path $AdbDirectory $file) -Destination $runtime }
 $queue = [Collections.Generic.Queue[string]]::new()
 $queue.Enqueue((Join-Path $runtime 'scrcpy.exe'))
@@ -46,6 +51,7 @@ Copy-Item -LiteralPath (Join-Path $root 'Windows-host/Fonts/Fraunces-OFL.txt') -
 Copy-Item -LiteralPath (Join-Path $MingwRoot 'share/licenses') -Destination (Join-Path $licenses 'MSYS2') -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'THIRD-PARTY-NOTICES.md') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'patches/scrcpy/EZ_ACROSS_PATCH.patch') -Destination (Join-Path $licenses 'EZ_ACROSS_PATCH.patch')
+Copy-Item -LiteralPath (Join-Path $root 'patches/scrcpy/EXTERNAL_KEYBOARD_UHID.patch') -Destination (Join-Path $licenses 'EXTERNAL_KEYBOARD_UHID.patch')
 $portSource = Get-Content -Raw (Join-Path $root 'Windows-host/Config.cs')
 if ($portSource -notmatch 'DefaultPort\s*=\s*(\d+)') { throw 'Default port missing' }
 $port = $Matches[1]

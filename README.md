@@ -4,11 +4,11 @@ Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas
 
 ## Baixar e instalar
 
-**Windows 1.1.1 e Android 1.1.0 — versões funcionais.**
+**Windows e Android 1.1.2 — versão validada em HiPadPlus e LAVIE T11.**
 
-- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.1/EZAcrossControl-1.1.1-windows-x64-setup.exe)
-- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.0/EZAcrossControl-1.1.0-android.apk)
-- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.1/EZAcrossControl-1.1.1-windows-x64-portable.zip)
+- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-windows-x64-setup.exe)
+- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-android.apk)
+- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ### Requisitos
@@ -54,11 +54,11 @@ O Android segue o idioma do sistema por padrão. Para alterar, abra **Modo Avan�
 - **Depuração desligada ou dispositivo não autorizado:** abra as configurações indicadas pelo APK, habilite a opção e autorize o computador.
 - **Wi-Fi caiu:** confira a depuração sem fio e a porta atual; o Android pode mudar a porta depois de desligar/ligar essa opção. O aplicativo atualiza a disponibilidade do controle enquanto está aberto.
 - **Servidor inacessível:** confirme o IP, a porta e que a rede Windows está marcada como privada. A regra criada pelo instalador permite apenas a rede local privada.
-- **Porta diferente de 8765 (Windows 1.1.1):** pare o servidor, altere a porta e inicie novamente. O aplicativo solicita autorização do Windows se precisar ajustar a reserva de URL ou a regra de firewall. A porta é salva após o início bem-sucedido; configure o mesmo valor no Android. A regra permite apenas TCP na porta selecionada, em redes privadas e na sub-rede local. Na versão 1.1.0, portas personalizadas precisam de configuração manual.
+- **Porta diferente de 8765 (Windows 1.1.2):** pare o servidor, altere a porta e inicie novamente. O aplicativo solicita autorização do Windows se precisar ajustar a reserva de URL ou a regra de firewall. A porta é salva após o início bem-sucedido; configure o mesmo valor no Android. A regra permite apenas TCP na porta selecionada, em redes privadas e na sub-rede local. Na versão 1.1.0, portas personalizadas precisam de configuração manual.
 - **APK de testes anterior:** a versão de distribuição usa uma assinatura própria. Para migrar de um APK de depuração, desinstale a versão antiga e instale esta. As preferências deverão ser informadas novamente.
 - **Windows portátil:** execute como administrador para escutar na LAN ou configure a reserva de URL/firewall. A versão instalável configura a porta padrão.
 
-Os testes físicos foram realizados em um HiPadPlus. A compatibilidade com outros fabricantes e a sensação de movimento devem ser verificadas no aparelho usado. O instalador Windows ainda não tem assinatura Authenticode; o APK possui assinatura de distribuição.
+Os testes físicos foram realizados em um HiPadPlus e um LAVIE T11. No HiPadPlus, o Gboard só voltou a mostrar a barra reduzida depois de restaurar o aparelho; o resultado pode depender do estado do Android e da versão do Gboard. A compatibilidade com outros fabricantes deve ser verificada no aparelho usado. O instalador Windows ainda não tem assinatura Authenticode; o APK possui assinatura de distribuição.
 
 ## Arquitetura e desenvolvimento
 

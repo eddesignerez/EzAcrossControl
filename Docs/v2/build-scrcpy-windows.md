@@ -12,17 +12,17 @@ To ensure 100% parity with official UHID input behavior while allowing EZ Across
 
 1. Abra o PowerShell como Administrador (necessário para a instalação do MSYS2 via winget).
 2. Navegue até a raiz do projeto `EZ Across Control`.
-3. Execute o script de automação:
+3. Use um checkout limpo da tag `v4.1` ou um worktree isolado, e execute:
    ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\build-scrcpy-ezacross.ps1
+   .\scripts\build-scrcpy-ezacross.ps1 -SourceDirectory '<checkout-scrcpy-v4.1>'
    ```
 4. Se solicitado pelo Windows (UAC), confirme a instalação do MSYS2.
 5. O script irá:
    - Instalar e atualizar o MSYS2
    - Instalar dependências de C via pacman (SDL3, FFmpeg, etc)
    - Clonar o scrcpy (`v4.1`)
-   - Aplicar o patch IPC localizado em `patches/scrcpy/EZ_ACROSS_PATCH.patch`
-   - Baixar o `scrcpy-server-v4.1` oficial pré-compilado e validar o SHA-256
+   - Aplicar o patch IPC em `patches/scrcpy/EZ_ACROSS_PATCH.patch` e o patch de teclado em `patches/scrcpy/EXTERNAL_KEYBOARD_UHID.patch`
+   - Compilar o servidor Android com o teclado UHID identificado como externo
    - Executar o Meson e o Ninja
    - Copiar os artefatos compilados para `third_party/scrcpy-ezacross/bin/`
 
@@ -37,9 +37,9 @@ O `ScrcpyProcessManager.cs` no aplicativo WPF apontará automaticamente para est
 ## Como Atualizar Futuramente
 
 Se você quiser atualizar a versão do scrcpy no futuro:
-1. Edite `scripts/build-scrcpy-ezacross.ps1` e modifique a tag/commit (`v4.1`) e a URL do prebuilt server (`scrcpy-server-v4.X`).
-2. Atualize o `ExpectedServerHash` no script para corresponder ao novo release oficial.
-3. Certifique-se de que o patch `EZ_ACROSS_PATCH.patch` continua compatível (use `git apply --check`).
+1. Edite `scripts/build-scrcpy-ezacross.ps1` e modifique a tag/commit (`v4.1`) após validar o novo código-fonte.
+2. Atualize as versões do Android SDK/JDK no `scripts/build-scrcpy-server.ps1` se a nova versão do scrcpy exigir.
+3. Certifique-se de que ambos os patches continuam compatíveis (use `git apply --check`).
 4. Rode o script de build novamente.
 
 Para limpar os arquivos temporários de compilação sem afetar os binários finais, rode:

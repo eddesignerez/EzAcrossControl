@@ -27,7 +27,9 @@ try {
     finally { Pop-Location }
     $output = Join-Path $root 'release-output'
     New-Item -ItemType Directory -Force $output | Out-Null
-    Copy-Item -LiteralPath (Join-Path $root 'Android-client/app/build/outputs/apk/release/app-release.apk') -Destination (Join-Path $output 'EZAcrossControl-1.1.0-android.apk')
+    $version = [regex]::Match((Get-Content -Raw (Join-Path $root 'Android-client/app/build.gradle.kts')), 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
+    if (-not $version) { throw 'Android version name missing' }
+    Copy-Item -LiteralPath (Join-Path $root 'Android-client/app/build/outputs/apk/release/app-release.apk') -Destination (Join-Path $output "EZAcrossControl-$version-android.apk")
 } finally {
     Remove-Item Env:EZAC_RELEASE_PASSWORD,Env:EZAC_RELEASE_STORE -ErrorAction SilentlyContinue
     $password = $null
