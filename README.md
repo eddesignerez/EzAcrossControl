@@ -1,6 +1,24 @@
-# EZ Across Control
+# EzAcrossControl
+
+![Símbolo original fornecido para EzAcrossControl](Brand/Assets/PNG/symbol-source-palette-128.png)
+
+**Conecte. Controle. Continue.** · by ElementZero
+
+Leia em: **[Português](README.md)** · [English](Docs/i18n/README.en.md) · [Español](Docs/i18n/README.es.md) · [日本語](Docs/i18n/README.ja.md) · [Italiano](Docs/i18n/README.it.md) · [Français](Docs/i18n/README.fr.md) · [Deutsch](Docs/i18n/README.de.md) · [简体中文](Docs/i18n/README.zh-CN.md) · [Tiếng Việt](Docs/i18n/README.vi.md) · [한국어](Docs/i18n/README.ko.md) · [العربية](Docs/i18n/README.ar.md)
 
 Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas pela borda do monitor. A comunicação entre os aplicativos fica na rede local, sem conta e sem serviços de nuvem.
+
+## Prévias visuais
+
+Estas imagens são **estudos estáticos da identidade visual**, criados a partir da logo fornecida pelo usuário. Não são capturas do aplicativo em execução. A tipografia, as aplicações e a harmonização de cores ainda aguardam aprovação para uso no produto.
+
+| Proposta Day | Proposta Night |
+| --- | --- |
+| ![Prévia estática da proposta Day](Brand/Assets/PNG/splash-day-1600x900.png) | ![Prévia estática da proposta Night](Brand/Assets/PNG/splash-night-1600x900.png) |
+
+<a href="Brand/VisualLearningWhiteboard/EzAcrossControl-visual-learning-whiteboard-mobile.png"><img src="Brand/VisualLearningWhiteboard/EzAcrossControl-visual-learning-whiteboard-mobile.png" alt="Quadro visual em português para celular: Windows, Android, rede local e troca pela borda" width="320"></a>
+
+[Abrir o quadro visual para celular](Brand/VisualLearningWhiteboard/EzAcrossControl-visual-learning-whiteboard-mobile.png) · [Comparar as variantes da identidade](Brand/Preview/brand-preview.png)
 
 ## Baixar e instalar
 
@@ -20,7 +38,7 @@ Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas
 
 ### Primeiro uso
 
-1. Execute o instalador Windows e abra **EZ Across Control**. A instalação solicita permissão de administrador para configurar o servidor local e o firewall da rede privada.
+1. Execute o instalador Windows e abra **EzAcrossControl**. A instalação solicita permissão de administrador para configurar o servidor local e o firewall da rede privada.
 2. Instale o APK no Android. Permita a instalação pelo aplicativo usado para abrir o arquivo, caso o sistema solicite.
 3. Em **Modo Avançado → Depuração → Abrir Configurações**, ative as opções de desenvolvedor e o método de depuração desejado. Autorize o computador quando o Android perguntar.
 4. Para Wi-Fi, abra **Depuração sem fio → Parear dispositivo com código de pareamento**. No computador, execute o ADB incluído no aplicativo:
@@ -79,8 +97,8 @@ Requisitos de desenvolvimento: .NET 8 SDK, Android SDK, JDK 17 e Node.js para ge
 
 ```powershell
 node scripts/build-localization.cjs
- dotnet build Windows-host/WindowsHost.csproj
- dotnet test Tests/WindowsHost.Tests/WindowsHost.Tests.csproj -c Release
+dotnet build Windows-host/WindowsHost.csproj
+dotnet test Tests/WindowsHost.Tests/WindowsHost.Tests.csproj -c Release
 cd Android-client
 .\gradlew.bat :app:assembleDebug :app:testDebugUnitTest
 ```
