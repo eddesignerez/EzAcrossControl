@@ -4,11 +4,11 @@ Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas
 
 ## Baixar e instalar
 
-**Versão publicada: Windows e Android 1.1.0.** A atualização Windows 1.1.1 está em validação final de instalação.
+**Windows 1.1.1 e Android 1.1.0 — versões funcionais.**
 
-- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.0/EZAcrossControl-1.1.0-windows-x64-setup.exe)
+- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.1/EZAcrossControl-1.1.1-windows-x64-setup.exe)
 - [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.0/EZAcrossControl-1.1.0-android.apk)
-- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.0/EZAcrossControl-1.1.0-windows-x64-portable.zip)
+- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.1/EZAcrossControl-1.1.1-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ### Requisitos

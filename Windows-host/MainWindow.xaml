@@ -4,7 +4,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="EZ Across Control" Height="545" Width="740" MinHeight="535" MinWidth="740"
         WindowStyle="None" ResizeMode="CanResize" WindowStartupLocation="CenterScreen"
-        Icon="/WindowsHost;component/Assets/EzAcrossControl.png"
+        Icon="Assets/EzAcrossControl.png"
         Background="{DynamicResource BackgroundBrush}"
         TextElement.Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="./Fonts/#Inter">
@@ -155,7 +155,7 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Border Background="Transparent" MouseLeftButtonDown="Header_DragMove" Cursor="SizeAll">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Image Source="/WindowsHost;component/Assets/EzAcrossControl.png" Width="48" Height="48" Stretch="Uniform" Margin="0,0,14,0"/>
+                            <Image Source="Assets/EzAcrossControl.png" Width="48" Height="48" Stretch="Uniform" Margin="0,0,14,0"/>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="EZ" FontFamily="./Fonts/#Fraunces EZ" FontWeight="ExtraBold" FontSize="26"/>
                                 <TextBlock Text=" Across Control" FontFamily="./Fonts/#Fraunces Across" FontWeight="Medium" FontStyle="Italic" FontSize="24"/>
