@@ -22,10 +22,10 @@ Estas imagens são **estudos estáticos da identidade visual**, criados a partir
 
 ## Baixar e instalar
 
-**Windows 1.1.4 e Android 1.1.5 — controle validado em HiPadPlus e LAVIE T11.**
+**Windows 1.1.4 e Android 1.1.6 — controle validado em HiPadPlus e LAVIE T11.**
 
 - [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.5/EZAcrossControl-1.1.5-android.apk)
+- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.6/EZAcrossControl-1.1.6-android.apk)
 - [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 
