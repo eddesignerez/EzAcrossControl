@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -81,6 +83,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         webSocketClient.disconnect()
+        ConnectionNotification(applicationContext).clear()
     }
 }
 
@@ -93,6 +96,12 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     val savedPort by prefsManager.portFlow.collectAsState(initial = Config.DEFAULT_PORT)
     val savedTheme by prefsManager.themeFlow.collectAsState(initial = AppTheme.System)
     val language by prefsManager.languageFlow.collectAsState(initial = "system")
+    val strings = LocalStrings.current
+    val connectionNotification = remember { ConnectionNotification(context.applicationContext) }
+    var notificationPermissionGranted by remember { mutableStateOf(ConnectionNotification.hasPermission(context)) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationPermissionGranted = granted
+    }
 
     var ip by remember(savedIp) { mutableStateOf(savedIp.ifEmpty { "192.168." }) }
     var port by remember(savedPort) { mutableStateOf(savedPort) }
@@ -117,6 +126,12 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     var currentHz by remember { mutableStateOf(sessionManager.currentHz) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(isConnected, controlTransport, strings, notificationPermissionGranted) {
+        connectionNotification.update(isConnected, controlTransport, strings)
+    }
+    DisposableEffect(Unit) {
+        onDispose { connectionNotification.clear() }
+    }
     LaunchedEffect(ip, port, lifecycleOwner) {
         fun setting(key: String): Boolean? = try {
             Settings.Global.getInt(context.contentResolver, key) == 1
@@ -124,6 +139,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
           catch (_: SecurityException) { null }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
+                notificationPermissionGranted = ConnectionNotification.hasPermission(context)
                 accessibilityEnabled = AndroidControlManager.isAccessibilityEnabled
                 controlState = AndroidControlManager.currentState
                 controlStopped = AndroidControlManager.isManuallyStopped
@@ -288,6 +304,9 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         onThemeChange = { value -> coroutineScope.launch { prefsManager.setTheme(value) } },
         onConnect = {
             status = ""
+            if (!notificationPermissionGranted && android.os.Build.VERSION.SDK_INT >= 33) {
+                notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
             webSocketClient.connect(ip, port, connectionMode)
         },
         onDisconnect = { webSocketClient.disconnect() },

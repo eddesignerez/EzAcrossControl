@@ -6,10 +6,10 @@
 
 使用 Windows 的鼠标和键盘控制 Android 设备。将指针移到选定的屏幕边缘，即可切换控制。两个应用通过局域网通信，无需账号，也不通过云端转发。
 
-## 下载 Windows 1.1.4 / Android 1.1.2 版
+## 下载 Windows 1.1.4 / Android 1.1.5 版
 
 - [Windows 安装程序](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-android.apk)
+- [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.5/EZAcrossControl-1.1.5-android.apk)
 - [Windows 便携版 ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [发布版本与完整性校验](https://github.com/eddesignerez/EzAcrossControl/releases)
 
