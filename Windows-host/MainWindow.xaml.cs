@@ -79,9 +79,7 @@ namespace WindowsHost
         private WinForms.NotifyIcon? _trayIcon;
         private Drawing.Icon? _connectedTrayIcon;
         private Drawing.Icon? _disconnectedTrayIcon;
-        private ImageSource? _connectedLogo;
-        private ImageSource? _disconnectedLogo;
-        private bool? _logoConnected;
+        private bool? _trayConnected;
         private bool _exitRequested;
         private bool _trayHintShown;
         private double _heightBeforeAdvanced;
@@ -365,8 +363,6 @@ namespace WindowsHost
             var offlineIconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControlOFF.ico");
             _connectedTrayIcon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : (Drawing.Icon)Drawing.SystemIcons.Application.Clone();
             _disconnectedTrayIcon = File.Exists(offlineIconPath) ? new Drawing.Icon(offlineIconPath) : (Drawing.Icon)_connectedTrayIcon.Clone();
-            _connectedLogo = LoadConnectionLogo("EzAcrossControl.png");
-            _disconnectedLogo = LoadConnectionLogo("EzAcrossControlOFF.png");
             var menu = new WinForms.ContextMenuStrip();
             menu.Items.Add(Localization.T("Restore"), null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
             menu.Items.Add(Localization.T("Exit"), null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
@@ -380,19 +376,10 @@ namespace WindowsHost
             _trayIcon.DoubleClick += (_, _) => Dispatcher.BeginInvoke(RestoreFromTray);
         }
 
-        private static ImageSource LoadConnectionLogo(string fileName)
+        private void UpdateTrayConnectionIcon(bool connected)
         {
-            var image = new System.Windows.Media.Imaging.BitmapImage(new Uri($"pack://application:,,,/Assets/{fileName}"));
-            image.Freeze();
-            return image;
-        }
-
-        private void UpdateConnectionLogo(bool connected)
-        {
-            if (_logoConnected == connected) return;
-            _logoConnected = connected;
-            ImgConnectionLogo.Source = connected ? _connectedLogo : _disconnectedLogo;
-            Icon = ImgConnectionLogo.Source;
+            if (_trayConnected == connected) return;
+            _trayConnected = connected;
             if (_trayIcon != null) _trayIcon.Icon = connected ? _connectedTrayIcon : _disconnectedTrayIcon;
         }
 
@@ -459,7 +446,7 @@ namespace WindowsHost
         {
             bool running = _listener?.IsListening == true && !_startingServer;
             bool connected = running && IsAndroidCompanionConnected();
-            UpdateConnectionLogo(connected);
+            UpdateTrayConnectionIcon(connected);
             var state = running ? (connected ? "Connected" : "Server Waiting") : "Off";
             BtnStart.SetResourceReference(System.Windows.Controls.ContentControl.ContentProperty, running ? "Ui.Started" : "Ui.Start Server");
             BtnStart.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");

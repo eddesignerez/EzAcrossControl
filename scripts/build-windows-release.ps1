@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.1.3',
+    [string]$Version = '1.1.4',
     [string]$InnoCompiler = $env:INNO_COMPILER,
     [string]$MingwRoot = 'C:\msys64\mingw64',
     [string]$AdbDirectory = 'C:\Android\platform-tools',
