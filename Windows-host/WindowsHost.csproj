@@ -19,7 +19,9 @@
     <Resource Include="Fonts\FrauncesEZ-ExtraBold.ttf" />
     <Resource Include="Fonts\FrauncesAcross-MediumItalic.ttf" />
     <Resource Include="Assets\EzAcrossControl.png" />
+    <Resource Include="Assets\EzAcrossControlOFF.png" />
     <Content Include="Assets\EzAcrossControl152D4D.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\EzAcrossControlOFF.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

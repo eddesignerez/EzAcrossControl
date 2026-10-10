@@ -6,11 +6,11 @@
 
 Windows のマウスとキーボードで Android 端末を操作できます。指定した画面の端へポインターを移動すると、操作先を切り替えられます。アプリ間の通信はローカルネットワーク内で行われ、アカウントやクラウド経由の通信は不要です。
 
-## バージョン 1.1.2 を入手
+## バージョン Windows 1.1.3 / Android 1.1.2 を入手
 
-- [Windows インストーラー](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-windows-x64-setup.exe)
+- [Windows インストーラー](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.3/EZAcrossControl-1.1.3-windows-x64-setup.exe)
 - [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-android.apk)
-- [Windows ポータブル ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.2/EZAcrossControl-1.1.2-windows-x64-portable.zip)
+- [Windows ポータブル ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.3/EZAcrossControl-1.1.3-windows-x64-portable.zip)
 - [リリースと整合性確認](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## 必要条件と初回接続

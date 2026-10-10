@@ -77,6 +77,11 @@ namespace WindowsHost
         private IScrcpyControlEngine _scrcpyEngine;
         private AndroidDeviceManager? _deviceManager;
         private WinForms.NotifyIcon? _trayIcon;
+        private Drawing.Icon? _connectedTrayIcon;
+        private Drawing.Icon? _disconnectedTrayIcon;
+        private ImageSource? _connectedLogo;
+        private ImageSource? _disconnectedLogo;
+        private bool? _logoConnected;
         private bool _exitRequested;
         private bool _trayHintShown;
         private double _heightBeforeAdvanced;
@@ -218,6 +223,7 @@ namespace WindowsHost
             _transportTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _transportTimer.Tick += async (_, _) =>
             {
+                if (!_closing) RefreshServerVisuals();
                 if (!_closing && IsAndroidCompanionConnected()) await StartEngineAsync();
             };
             _transportTimer.Start();
@@ -356,17 +362,38 @@ namespace WindowsHost
         private void InitializeTrayIcon()
         {
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControl152D4D.ico");
+            var offlineIconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "EzAcrossControlOFF.ico");
+            _connectedTrayIcon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : (Drawing.Icon)Drawing.SystemIcons.Application.Clone();
+            _disconnectedTrayIcon = File.Exists(offlineIconPath) ? new Drawing.Icon(offlineIconPath) : (Drawing.Icon)_connectedTrayIcon.Clone();
+            _connectedLogo = LoadConnectionLogo("EzAcrossControl.png");
+            _disconnectedLogo = LoadConnectionLogo("EzAcrossControlOFF.png");
             var menu = new WinForms.ContextMenuStrip();
             menu.Items.Add(Localization.T("Restore"), null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
             menu.Items.Add(Localization.T("Exit"), null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
             _trayIcon = new WinForms.NotifyIcon
             {
-                Icon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : Drawing.SystemIcons.Application,
+                Icon = _disconnectedTrayIcon,
                 Text = "EZ Across Control",
                 ContextMenuStrip = menu,
                 Visible = true
             };
             _trayIcon.DoubleClick += (_, _) => Dispatcher.BeginInvoke(RestoreFromTray);
+        }
+
+        private static ImageSource LoadConnectionLogo(string fileName)
+        {
+            var image = new System.Windows.Media.Imaging.BitmapImage(new Uri($"pack://application:,,,/Assets/{fileName}"));
+            image.Freeze();
+            return image;
+        }
+
+        private void UpdateConnectionLogo(bool connected)
+        {
+            if (_logoConnected == connected) return;
+            _logoConnected = connected;
+            ImgConnectionLogo.Source = connected ? _connectedLogo : _disconnectedLogo;
+            Icon = ImgConnectionLogo.Source;
+            if (_trayIcon != null) _trayIcon.Icon = connected ? _connectedTrayIcon : _disconnectedTrayIcon;
         }
 
         private void RestoreFromTray()
@@ -431,14 +458,16 @@ namespace WindowsHost
         private void RefreshServerVisuals()
         {
             bool running = _listener?.IsListening == true && !_startingServer;
-            var state = running ? (_androidHandshakeComplete ? "Connected" : "Server Waiting") : "Off";
+            bool connected = running && IsAndroidCompanionConnected();
+            UpdateConnectionLogo(connected);
+            var state = running ? (connected ? "Connected" : "Server Waiting") : "Off";
             BtnStart.SetResourceReference(System.Windows.Controls.ContentControl.ContentProperty, running ? "Ui.Started" : "Ui.Start Server");
             BtnStart.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
             Localization.SetStatus(TxtServerStatus, running ? "Running" : "Stopped");
             TxtServerStatus.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Localization.SetStatus(TxtLocalServerState, state);
             TxtLocalServerState.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
-                !running ? "ErrorPrimaryBrush" : _androidHandshakeComplete ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
+                !running ? "ErrorPrimaryBrush" : connected ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
             BtnStart.IsEnabled = !running && !_startingServer;
             BtnStop.IsEnabled = running;
             TxtPort.IsEnabled = !running && !_startingServer;
@@ -598,6 +627,7 @@ namespace WindowsHost
                 _currentSocket = wsContext.WebSocket;
                 _companionAddress = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
                 _androidHandshakeComplete = false;
+                Dispatcher.InvokeAsync(RefreshServerVisuals);
                 // Dispatcher.Invoke(() => TxtAndroidStatus.Text = "Connected");
                 _sessionManager.SetState(InputSessionState.Connected);
 
@@ -913,6 +943,8 @@ namespace WindowsHost
                 _trayIcon.Dispose();
                 _trayIcon = null;
             }
+            _connectedTrayIcon?.Dispose();
+            _disconnectedTrayIcon?.Dispose();
             _transportTimer.Stop();
             SafeReleaseInputOwnership("App closed");
 
