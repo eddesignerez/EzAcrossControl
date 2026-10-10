@@ -6,10 +6,10 @@
 
 Windows 마우스와 키보드로 Android 기기를 제어할 수 있습니다. 포인터를 선택한 화면 가장자리로 옮기면 제어 대상을 전환할 수 있습니다. 두 앱은 계정이나 클라우드 경유 없이 로컬 네트워크에서 통신합니다.
 
-## 버전 Windows 1.1.4 / Android 1.1.6 다운로드
+## 버전 Windows 1.1.4 / Android 1.1.7 다운로드
 
 - [Windows 설치 프로그램](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.6/EZAcrossControl-1.1.6-android.apk)
+- [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.7/EZAcrossControl-1.1.7-android.apk)
 - [Windows 휴대용 ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [릴리스 및 무결성 확인](https://github.com/eddesignerez/EzAcrossControl/releases)
 

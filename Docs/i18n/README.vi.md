@@ -6,10 +6,10 @@
 
 Điều khiển thiết bị Android bằng chuột và bàn phím Windows. Di chuyển con trỏ tới cạnh màn hình đã chọn để chuyển quyền điều khiển. Hai ứng dụng liên lạc qua mạng nội bộ, không cần tài khoản hoặc định tuyến qua đám mây.
 
-## Tải phiên bản Windows 1.1.4 / Android 1.1.6
+## Tải phiên bản Windows 1.1.4 / Android 1.1.7
 
 - [Bộ cài Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [APK Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.6/EZAcrossControl-1.1.6-android.apk)
+- [APK Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.7/EZAcrossControl-1.1.7-android.apk)
 - [ZIP Windows di động](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [Các bản phát hành và kiểm tra tính toàn vẹn](https://github.com/eddesignerez/EzAcrossControl/releases)
 

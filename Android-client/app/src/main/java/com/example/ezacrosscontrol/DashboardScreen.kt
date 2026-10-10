@@ -166,6 +166,16 @@ internal fun DashboardScreen(
                 Column(Modifier.animateContentSize()) {
                     if (advancedOpen) {
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
+                        CardHeading("Depuração")
+                        Spacer(Modifier.height(12.dp))
+                        ReadinessStatus("USB:", if (readiness.usbReady) "Ready" else if (readiness.usbEnabled == false) "Disable" else "Waiting", readiness.usbReady, failed = readiness.usbEnabled == false, waiting = readiness.usbEnabled != false && !readiness.usbReady)
+                        Spacer(Modifier.height(8.dp))
+                        ReadinessStatus("Wi-Fi:", if (readiness.wifiReady) "Ready" else if (readiness.wifiEnabled == false) "Disable" else "Waiting", readiness.wifiReady, failed = readiness.wifiEnabled == false, waiting = readiness.wifiEnabled != false && !readiness.wifiReady)
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onOpenDeveloperSettings, Modifier.fillMaxWidth(), shape = corner) { Text(strings["Open Settings"]) }
+                        Text(strings["Opções do Desenvolvedor"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                        HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Remote Control")
                         Spacer(Modifier.height(12.dp))
                         ReadinessStatus("Accessibility:", if (accessibilityEnabled) "Enable" else "Disable", accessibilityEnabled, failed = !accessibilityEnabled)
@@ -190,16 +200,6 @@ internal fun DashboardScreen(
                             OutlinedButton(onEnableIme, Modifier.weight(1f), shape = corner) { Text(strings["Open Settings"]) }
                             OutlinedButton(onSelectIme, Modifier.weight(1f), shape = corner) { Text(strings["Select Keyboard"]) }
                         }
-                        HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
-                        CardHeading("Depuração")
-                        Spacer(Modifier.height(12.dp))
-                        ReadinessStatus("USB:", if (readiness.usbReady) "Ready" else if (readiness.usbEnabled == false) "Disable" else "Waiting", readiness.usbReady, failed = readiness.usbEnabled == false, waiting = readiness.usbEnabled != false && !readiness.usbReady)
-                        Spacer(Modifier.height(8.dp))
-                        ReadinessStatus("Wi-Fi:", if (readiness.wifiReady) "Ready" else if (readiness.wifiEnabled == false) "Disable" else "Waiting", readiness.wifiReady, failed = readiness.wifiEnabled == false, waiting = readiness.wifiEnabled != false && !readiness.wifiReady)
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onOpenDeveloperSettings, Modifier.fillMaxWidth(), shape = corner) { Text(strings["Open Settings"]) }
-                        Text(strings["Opções do Desenvolvedor"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         LanguageSelector(language, onLanguageChange)
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
