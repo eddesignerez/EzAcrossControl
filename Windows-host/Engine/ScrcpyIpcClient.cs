@@ -100,11 +100,33 @@ namespace WindowsHost.Engine
 
         public void Dispose()
         {
-            _disposeCts?.Cancel();
-            _writer?.Dispose();
-            _reader?.Dispose();
-            _pipeServer?.Dispose();
-            _disposeCts?.Dispose();
+            var cancellation = Interlocked.Exchange(ref _disposeCts, null);
+            var writer = Interlocked.Exchange(ref _writer, null);
+            var reader = Interlocked.Exchange(ref _reader, null);
+            var pipe = Interlocked.Exchange(ref _pipeServer, null);
+            try { cancellation?.Cancel(); }
+            finally
+            {
+                // StreamWriter.Dispose flushes: a disconnected peer must not
+                // prevent disposal of the remaining resources.
+                try { DisposeDisconnectedStream(writer); }
+                finally
+                {
+                    try { DisposeDisconnectedStream(reader); }
+                    finally
+                    {
+                        try { DisposeDisconnectedStream(pipe); }
+                        finally { cancellation?.Dispose(); }
+                    }
+                }
+            }
+        }
+
+        private static void DisposeDisconnectedStream(IDisposable? stream)
+        {
+            try { stream?.Dispose(); }
+            catch (IOException ex) { System.Diagnostics.Debug.WriteLine($"[IPC] Cleanup: {ex.Message}"); }
+            catch (ObjectDisposedException) { }
         }
     }
 }

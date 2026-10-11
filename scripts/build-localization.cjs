@@ -10,7 +10,7 @@ for (const line of fs.readFileSync('Localization/messages.tsv','utf8').trim().sp
 Object.assign(translations.en, {
  'CONTROLE ENTRE TELAS':'CONTROL BETWEEN SCREENS','Conectar':'Connect','Conectado':'Connected','Aguardando':'Waiting','Desconectado':'Disconnected','Desconectar':'Disconnect',
  'TOQUE AQUI':'TAP HERE','TOQUE PARA SAIR':'TAP TO DISCONNECT','Endereço do IP':'IP Address','Porta':'Port','Modo Avançado':'Advanced Mode','Depuração':'Debugging','Opções do Desenvolvedor':'Developer Options',
- 'Auto: preferência Wi-Fi; USB quando disponível.':'Auto: prefers Wi-Fi; uses USB when available.','Aguardando Host':'Waiting for Host',
+ 'Auto: preferência USB; Wi-Fi quando necessário.':'Auto: prefers USB; uses Wi-Fi when needed.','Aguardando Host':'Waiting for Host',
  'Controle Indisponível. Verifique a Depuração.':'Control Unavailable. Check Debugging.','Controle desconectado. Verifique a depuração.':'Control disconnected. Check debugging.',
  'Pronto para Conectar via USB':'Ready to Connect via USB','Pronto para Conectar via Wi-Fi':'Ready to Connect via Wi-Fi',
  'Ative as Opções do Desenvolvedor':'Enable Developer Options','Ative a Depuração USB':'Enable USB Debugging','Ative a Depuração Wi-Fi':'Enable Wi-Fi Debugging','Ative a Depuração Wi-Fi ou USB':'Enable Wi-Fi or USB Debugging',

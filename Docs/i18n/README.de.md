@@ -6,11 +6,11 @@
 
 Steuern Sie Ihr Android-Gerät mit Maus und Tastatur von Windows. Bewegen Sie den Zeiger an den gewählten Bildschirmrand, um die Steuerung zu wechseln. Die Apps kommunizieren über das lokale Netzwerk, ohne Konto oder Cloud-Routing.
 
-## Version Windows 1.1.4 / Android 1.1.7 herunterladen
+## Version Windows 1.1.18 / Android 1.1.18 herunterladen
 
-- [Windows-Installationsprogramm](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [Android-APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.7/EZAcrossControl-1.1.7-android.apk)
-- [Portables Windows-ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [Windows-Installationsprogramm](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
+- [Android-APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
+- [Portables Windows-ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Releases und Integritätsprüfungen](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Voraussetzungen und erste Verbindung

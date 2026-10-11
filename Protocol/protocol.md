@@ -45,10 +45,11 @@ All post-handshake messages require protocol v2 and the active authenticated soc
 {"Type":"PING","ProtocolVersion":2,"Payload":{"Timestamp":1720000000000}}
 {"Type":"PONG","ProtocolVersion":2,"Payload":{"Timestamp":1720000000000}}
 {"Type":"SESSION_STATUS","ProtocolVersion":2,"Payload":{"ControlTransport":"Wi-Fi","EngineState":"Ready","ControlEnabled":true}}
+{"Type":"WAKE_SCREEN","ProtocolVersion":2,"Payload":{}}
 {"Type":"CONTROL_STOP","ProtocolVersion":2,"Payload":{}}
 ```
 
-`ControlTransport` is `USB`, `Wi-Fi`, or `null`. `CONTROL_STOP` releases control and blocks capture until a successful authenticated reconnect; it does not alter Android Accessibility or debugging settings.
+`ControlTransport` is `USB`, `Wi-Fi`, or `null`. `WAKE_SCREEN` is sent only to the active authenticated companion immediately before capture; it may turn on the Android display, but never unlocks a secure lock screen. `CONTROL_STOP` releases control and blocks capture until a successful authenticated reconnect; it does not alter Android Accessibility or debugging settings.
 
 ## Input and handoff
 

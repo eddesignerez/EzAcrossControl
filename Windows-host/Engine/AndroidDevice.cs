@@ -16,7 +16,7 @@ namespace WindowsHost.Engine
         {
             ConnectionMode.Usb => UsbSerial,
             ConnectionMode.Network => TcpSerial,
-            _ => NetworkAvailable ? TcpSerial : UsbSerial
+            _ => UsbAvailable ? UsbSerial : TcpSerial
         };
     }
 }

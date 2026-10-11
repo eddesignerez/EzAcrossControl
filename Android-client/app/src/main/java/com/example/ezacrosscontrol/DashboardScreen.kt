@@ -136,7 +136,7 @@ internal fun DashboardScreen(
                             border = BorderStroke(1.dp, if (connectionMode == mode) colors.primary else colors.outline))
                     }
                 }
-                Text(strings["Auto: preferência Wi-Fi; USB quando disponível."], Modifier.fillMaxWidth(),
+                Text(strings["Auto: preferência USB; Wi-Fi quando necessário."], Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
             }
             DashboardCard {

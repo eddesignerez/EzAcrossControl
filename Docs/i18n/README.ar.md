@@ -6,11 +6,11 @@
 
 تحكّم بجهاز Android باستخدام فأرة Windows ولوحة مفاتيحه. انقل المؤشر إلى حافة الشاشة المحددة للتبديل بين الجهازين. يتواصل التطبيقان عبر الشبكة المحلية دون حساب أو توجيه عبر السحابة.
 
-## تنزيل الإصدار Windows 1.1.4 / Android 1.1.7
+## تنزيل الإصدار Windows 1.1.18 / Android 1.1.18
 
-- [مثبّت Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-setup.exe)
-- [ملف Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.7/EZAcrossControl-1.1.7-android.apk)
-- [نسخة Windows المحمولة ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [مثبّت Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
+- [ملف Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
+- [نسخة Windows المحمولة ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [الإصدارات وفحوص السلامة](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## المتطلبات والاتصال الأول

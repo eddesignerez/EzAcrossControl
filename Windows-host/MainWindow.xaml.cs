@@ -1362,13 +1362,13 @@ namespace WindowsHost
             if (_deviceManager == null) _deviceManager = new AndroidDeviceManager();
             var devices = await _deviceManager.GetDevicesAsync();
             var mode = _appSettings.ConnectionMode;
-            bool needsWireless = mode == ConnectionMode.Network || mode == ConnectionMode.Auto;
-            if (needsWireless && AndroidDeviceManager.FindCompanionDevice(devices,
-                ConnectionMode.Network, _companionDeviceName, _companionAddress) == null)
+            var usb = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
+                _companionDeviceName, _companionAddress);
+            var network = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Network,
+                _companionDeviceName, _companionAddress);
+            if (AndroidDeviceManager.ShouldDiscoverNetwork(mode, usb != null, network != null))
             {
                 Log("Looking for the paired Wi-Fi ADB connection...");
-                var usb = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
-                    _companionDeviceName, _companionAddress);
                 await _deviceManager.DiscoverNetworkAsync(_companionAddress, usb);
                 devices = await _deviceManager.GetDevicesAsync();
             }
@@ -1509,6 +1509,18 @@ namespace WindowsHost
                 return await Dispatcher.InvokeAsync(PrepareCaptureAsync).Task.Unwrap();
             if (!IsHandoffAvailable() || _scrcpyEngine.IsCaptured) return false;
             if (!UsesNativeScrcpyInput()) return true;
+
+            var activeSerial = (_scrcpyEngine as ScrcpyProcessManager)?.ActiveSerial;
+            if (string.IsNullOrWhiteSpace(activeSerial))
+            {
+                Log("Capture cancelled: no active ADB serial is available to wake the tablet.");
+                return false;
+            }
+
+            // Activate the hidden SDL input window while this method is still handling
+            // the edge gesture. Waiting for ADB first loses Windows' foreground-input
+            // permission, which left Wi-Fi sessions marked connected but unable to
+            // hand off after the tablet had slept.
             _windowToRestoreAfterNativeCapture = NativeMethods.GetForegroundWindow();
             NativeMethods.GetCursorPos(out var entryPointer);
             _pointerBeforeCapture = entryPointer;
@@ -1517,14 +1529,49 @@ namespace WindowsHost
                 && (_scrcpyEngine as ScrcpyProcessManager)?.ActivateInputWindow() == true;
             if (!focused)
             {
-                _windowToRestoreAfterNativeCapture = IntPtr.Zero;
-                _pointerBeforeCapture = null;
-                (_scrcpyEngine as ScrcpyProcessManager)?.HideInputWindow();
-                NativeMethods.SetCursorPos(entryPointer.x, entryPointer.y);
-                Log("Capture cancelled: Windows did not place and activate the scrcpy input window.");
-                (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
+                CancelPreparedCapture(entryPointer, "Capture cancelled: Windows did not place and activate the scrcpy input window.");
+                return false;
             }
-            return focused;
+
+            RequestAndroidScreenWake();
+
+            // A UHID mouse can otherwise take control while the Android display is
+            // asleep. The paired Android app receives the LAN wake request first;
+            // ADB remains the transport-level fallback. The window is already
+            // focused, so this asynchronous call cannot invalidate the handoff.
+            if (!await AndroidDeviceManager.WakeDeviceAsync(activeSerial))
+            {
+                CancelPreparedCapture(entryPointer, "Capture cancelled: Wi-Fi ADB did not confirm the screen wake. The paired Android app was asked to turn on the display; wait for Wi-Fi debugging to recover, then move the mouse to the edge again.");
+                return false;
+            }
+
+            Log("Tablet wake command completed; transferring mouse control to Android.");
+            return true;
+        }
+
+        private void CancelPreparedCapture(NativeMethods.POINT entryPointer, string reason)
+        {
+            (_scrcpyEngine as ScrcpyProcessManager)?.HideInputWindow();
+            if (_windowToRestoreAfterNativeCapture != IntPtr.Zero)
+                NativeMethods.ActivateWindow(_windowToRestoreAfterNativeCapture);
+            _windowToRestoreAfterNativeCapture = IntPtr.Zero;
+            _pointerBeforeCapture = null;
+            NativeMethods.SetCursorPos(entryPointer.x, entryPointer.y);
+            Log(reason);
+            (_edgeTransitionService as EdgeTransitionService)?.StartRearmGuard();
+        }
+
+        private void RequestAndroidScreenWake()
+        {
+            if (!IsAndroidCompanionConnected() || _currentSocket == null) return;
+
+            SendMessage(_currentSocket, JsonSerializer.Serialize(new MessageEnvelope
+            {
+                Type = "WAKE_SCREEN",
+                ProtocolVersion = ProtocolVersion,
+                Payload = new { }
+            }));
+            Log("Requested screen wake from the paired Android companion over LAN.");
         }
 
         private void BeginAndroidHandoff(EdgeTransitionEventArgs handoff)

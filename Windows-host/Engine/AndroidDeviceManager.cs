@@ -109,6 +109,16 @@ namespace WindowsHost.Engine
                 && candidates.Count == 1 ? candidates[0] : null;
         }
 
+        /// <summary>
+        /// Wireless ADB discovery is a recovery path, not a background task. In Auto
+        /// mode a matching authorized USB device is the preferred transport, so
+        /// probing Wi-Fi would only repeat <c>adb connect</c> without affecting the
+        /// selected serial.
+        /// </summary>
+        public static bool ShouldDiscoverNetwork(ConnectionMode mode, bool usbAvailable, bool networkAvailable) =>
+            !networkAvailable && (mode == ConnectionMode.Network
+                || (mode == ConnectionMode.Auto && !usbAvailable));
+
         public async Task DiscoverNetworkAsync(string? companionAddress, AndroidDevice? usbDevice)
         {
             if (string.IsNullOrEmpty(companionAddress) || !IPAddress.TryParse(companionAddress, out var address)) return;
@@ -137,6 +147,50 @@ namespace WindowsHost.Engine
         {
             var output = await RunAdbCommandAsync($"disconnect {ipAndPort}");
             return output.Contains("disconnected");
+        }
+
+        /// <summary>
+        /// Wakes a connected device without sending a POWER toggle.  KEYCODE_WAKEUP
+        /// is idempotent when the display is already on, which is important when a
+        /// user crosses the edge while already controlling the tablet.
+        /// </summary>
+        public static async Task<bool> WakeDeviceAsync(string serial)
+        {
+            if (string.IsNullOrWhiteSpace(serial)) return false;
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = AdbPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                psi.ArgumentList.Add("-s");
+                psi.ArgumentList.Add(serial);
+                psi.ArgumentList.Add("shell");
+                psi.ArgumentList.Add("input");
+                psi.ArgumentList.Add("keyevent");
+                psi.ArgumentList.Add("WAKEUP");
+
+                using var process = new Process { StartInfo = psi };
+                process.Start();
+                try
+                {
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                catch (TimeoutException)
+                {
+                    process.Kill();
+                    return false;
+                }
+
+                return process.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private async Task<string> RunAdbCommandAsync(string arguments)

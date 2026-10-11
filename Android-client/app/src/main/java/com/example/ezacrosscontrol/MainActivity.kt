@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import com.example.ezacrosscontrol.protocol.InputSessionManager
 import com.example.ezacrosscontrol.control.AndroidControlManager
 import com.example.ezacrosscontrol.control.ControlState
+import com.example.ezacrosscontrol.control.ScreenWakeController
 import android.provider.Settings
 import android.content.Intent
 
@@ -198,12 +199,15 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
             logText = "[$msg]\n$logText".take(8000)
         }
         webSocketClient.onEventReceived = { env ->
-            if (env.type == "SESSION_STATUS") {
-                coroutineScope.launch {
-                    val transport = env.payload.optString("ControlTransport").takeIf { it == "USB" || it == "Wi-Fi" }
-                    if (transport == null && controlTransport != null) status = "Controle desconectado. Verifique a depuração."
-                    if (transport != null) status = ""
-                    controlTransport = transport
+            when (env.type) {
+                "WAKE_SCREEN" -> ScreenWakeController.wake(context.applicationContext)
+                "SESSION_STATUS" -> {
+                    coroutineScope.launch {
+                        val transport = env.payload.optString("ControlTransport").takeIf { it == "USB" || it == "Wi-Fi" }
+                        if (transport == null && controlTransport != null) status = "Controle desconectado. Verifique a depuração."
+                        if (transport != null) status = ""
+                        controlTransport = transport
+                    }
                 }
             }
             sessionManager.onEventReceived(env)

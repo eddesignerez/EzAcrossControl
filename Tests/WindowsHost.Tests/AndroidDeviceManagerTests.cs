@@ -9,7 +9,7 @@ public class AndroidDeviceManagerTests
     {
         var result = AndroidDeviceManager.ParseDevices("List of devices attached\nusb-id\tdevice product:test model:Phone device:test\n192.0.2.12:37123\tdevice product:test model:Phone device:test\noffline-id\toffline model:Other\nlocked-id\tunauthorized model:Locked\n");
         var device = Assert.Single(result);
-        Assert.Equal("192.0.2.12:37123", device.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("usb-id", device.GetSerial(ConnectionMode.Auto));
         Assert.Equal("192.0.2.12:37123", device.GetSerial(ConnectionMode.Network));
         Assert.Equal("usb-id", device.GetSerial(ConnectionMode.Usb));
     }
@@ -38,14 +38,28 @@ public class AndroidDeviceManagerTests
     }
 
     [Fact]
-    public void AutoKeepsWifiWhenUsbIsRemovedAndReconnected()
+    public void AutoPrefersUsbAndFallsBackToWifiWhenUnplugged()
     {
         var both = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id device model:Phone\n192.0.2.12:37123 device model:Phone\n"));
-        Assert.Equal("192.0.2.12:37123", both.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("usb-id", both.GetSerial(ConnectionMode.Auto));
         var unplugged = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id offline model:Phone\n192.0.2.12:37123 device model:Phone\n"));
         Assert.Equal("192.0.2.12:37123", unplugged.GetSerial(ConnectionMode.Auto));
         var reconnected = Assert.Single(AndroidDeviceManager.ParseDevices("usb-id device model:Phone\n192.0.2.12:37123 device model:Phone\n"));
-        Assert.Equal("192.0.2.12:37123", reconnected.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("usb-id", reconnected.GetSerial(ConnectionMode.Auto));
+    }
+
+    [Theory]
+    [InlineData(ConnectionMode.Auto, true, false, false)]
+    [InlineData(ConnectionMode.Auto, true, true, false)]
+    [InlineData(ConnectionMode.Auto, false, true, false)]
+    [InlineData(ConnectionMode.Auto, false, false, true)]
+    [InlineData(ConnectionMode.Network, true, false, true)]
+    [InlineData(ConnectionMode.Network, false, true, false)]
+    [InlineData(ConnectionMode.Usb, false, false, false)]
+    public void WirelessDiscoveryOnlyRunsWhenTheRequestedTransportNeedsRecovery(
+        ConnectionMode mode, bool usbAvailable, bool networkAvailable, bool expected)
+    {
+        Assert.Equal(expected, AndroidDeviceManager.ShouldDiscoverNetwork(mode, usbAvailable, networkAvailable));
     }
 
     [Fact]
@@ -75,11 +89,11 @@ public class AndroidDeviceManagerTests
     }
 
     [Fact]
-    public void AutoPrefersWifiOfMatchingTabletDespitePhoneWifi()
+    public void AutoPrefersUsbOfMatchingTabletDespitePhoneWifi()
     {
         var devices = AndroidDeviceManager.ParseDevices("tablet-usb device model:Tablet\n192.0.2.13:40000 device model:Tablet\n192.0.2.12:37123 device model:Phone\n");
         var tablet = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Auto,
             "Tablet", "192.0.2.13");
-        Assert.Equal("192.0.2.13:40000", tablet?.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("tablet-usb", tablet?.GetSerial(ConnectionMode.Auto));
     }
 }

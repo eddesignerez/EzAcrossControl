@@ -336,66 +336,68 @@ namespace WindowsHost.Engine
         private async Task StopCoreAsync()
         {
             if (State == ScrcpyEngineState.Offline || State == ScrcpyEngineState.Error) return;
-
-            if (State == ScrcpyEngineState.Captured && _ipcClient != null)
+            try
             {
-                _releasedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                await _ipcClient.SendMessageAsync("CAPTURE_OFF");
-                try
+                if (State == ScrcpyEngineState.Captured && _ipcClient != null)
                 {
-                    await _releasedTcs.Task.WaitAsync(TimeSpan.FromSeconds(1));
+                    _releasedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    await _ipcClient.SendMessageAsync("CAPTURE_OFF");
+                    try { await _releasedTcs.Task.WaitAsync(TimeSpan.FromSeconds(1)); }
+                    catch (TimeoutException) { }
                 }
-                catch { }
-            }
-
-            _lifecycleCts?.Cancel();
-
-            if (_ipcClient != null)
-            {
-                await _ipcClient.SendMessageAsync("SHUTDOWN");
-                await Task.Delay(200); // Give it a moment to send
-                _ipcClient.Dispose();
-                _ipcClient = null;
-            }
-
-            if (_scrcpyProcess != null && !_scrcpyProcess.HasExited)
-            {
-                try
+                if (_ipcClient != null)
                 {
-                    _scrcpyProcess.Kill();
+                    await _ipcClient.SendMessageAsync("SHUTDOWN");
+                    await Task.Delay(200);
                 }
-                catch { }
-                _scrcpyProcess.Dispose();
-                _scrcpyProcess = null;
             }
+            catch (IOException ex) { Debug.WriteLine($"[IPC] Peer disconnected during stop: {ex.Message}"); }
+            catch (ObjectDisposedException) { }
+            finally
+            {
+                CleanupEngine(ScrcpyEngineState.Offline);
+            }
+        }
 
-            ControlOwner = ControlOwner.Windows;
-            ActiveTransport = null;
-            ActiveSerial = null;
-            State = ScrcpyEngineState.Offline;
+        private void CleanupEngine(ScrcpyEngineState finalState)
+        {
+            var ipc = _ipcClient;
+            var process = _scrcpyProcess;
+            _ipcClient = null;
+            _scrcpyProcess = null;
+            _inputWindowHandle = IntPtr.Zero;
+            try
+            {
+                _lifecycleCts?.Cancel();
+                try { ipc?.Dispose(); }
+                finally
+                {
+                    if (process != null)
+                    {
+                        try
+                        {
+                            if (!process.HasExited) process.Kill();
+                        }
+                        catch (InvalidOperationException) { }
+                        catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[ENGINE] Cleanup: {ex.Message}"); }
+                        finally { process.Dispose(); }
+                    }
+                }
+            }
+            finally
+            {
+                ControlOwner = ControlOwner.Windows;
+                ActiveTransport = null;
+                ActiveSerial = null;
+                State = finalState;
+            }
         }
 
         private void FireError(string msg)
         {
             Debug.WriteLine($"[ENGINE] ERROR: {msg}");
             
-            _lifecycleCts?.Cancel();
-
-            // Clean up synchronously as much as possible since we might be inside a lock
-            _ipcClient?.Dispose();
-            _ipcClient = null;
-
-            if (_scrcpyProcess != null && !_scrcpyProcess.HasExited)
-            {
-                try { _scrcpyProcess.Kill(); } catch { }
-                _scrcpyProcess.Dispose();
-                _scrcpyProcess = null;
-            }
-
-            ControlOwner = ControlOwner.Windows;
-            ActiveTransport = null;
-            ActiveSerial = null;
-            State = ScrcpyEngineState.Error;
+            CleanupEngine(ScrcpyEngineState.Error);
             Error?.Invoke(this, msg);
         }
 
