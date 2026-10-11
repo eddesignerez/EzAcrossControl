@@ -10,7 +10,7 @@ Steuern Sie Ihr Android-Gerät mit Maus und Tastatur von Windows. Bewegen Sie de
 
 - [Windows-Installationsprogramm](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [Android-APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [Portables Windows-ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
+- [Portables Windows-ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [Releases und Integritätsprüfungen](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Voraussetzungen und erste Verbindung

@@ -10,7 +10,7 @@ Controlla il dispositivo Android con mouse e tastiera di Windows. Sposta il punt
 
 - [Programma di installazione Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [APK Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [ZIP portatile Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
+- [ZIP portatile Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [Release e verifiche di integrità](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Requisiti e primo collegamento

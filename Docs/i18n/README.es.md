@@ -10,7 +10,7 @@ Controla tu dispositivo Android con el ratón y el teclado de Windows. Lleva el 
 
 - [Instalador de Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [APK de Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [ZIP portátil para Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
+- [ZIP portátil para Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
 - [Versiones y comprobaciones de integridad](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Requisitos y primera conexión
