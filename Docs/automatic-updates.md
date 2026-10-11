@@ -16,7 +16,9 @@ sendo parte da cadeia de confiança.
 
 Depois do download validado, inicia o Inno Setup. O Windows solicita elevação;
 cancelar essa autorização deixa o aplicativo aberto. Após iniciar o instalador,
-o controle é liberado, o ADB é reiniciado e o Host encerra para liberar seus arquivos.
+o Host encerra o motor, para o ADB e fecha. O Setup aguarda esse encerramento e
+para novamente o ADB imediatamente antes de substituir os arquivos, evitando a
+disputa pelo `adb.exe` observada ao instalar a 1.1.19.
 O aviso de aceite informa que outras conexões Android podem ser interrompidas.
 O instalador preserva as configurações existentes e reabre o aplicativo ao concluir
 uma atualização iniciada com `/EZACUPDATE`. Não aceita scripts ou comandos da release.
@@ -48,7 +50,7 @@ foram usados o fluxo fornecido e as diretrizes locais de foco, feedback e acessi
 Validação real de upgrade exige uma release posterior publicada, consentimento
 e confirmação do sistema; testes sintéticos não equivalem a instalação real.
 
-## Validação da implementação 1.1.19
+## Implementação 1.1.19 e correção da instalação 1.1.20
 
 - 69 testes Windows e 30 testes Android aprovados. Incluem comparação de versões,
   origem e hash, download cancelado/incompleto, redirecionamento do CDN oficial,
@@ -60,5 +62,8 @@ e confirmação do sistema; testes sintéticos não equivalem a instalação rea
 - APK release 1.1.19, versionCode 17, assinatura verificada e igual à de 1.1.18.
   Instalador Inno Setup e pacote portátil gerados localmente.
 - O APK 1.1.19 foi instalado no HiPadPlus USB e a versão 1.1.19 foi confirmada.
-  A instalação e reabertura automáticas de uma atualização iniciada pelo aviso
-  ainda dependem de testar uma release posterior publicada.
+- Na instalação 1.1.19, o Inno Setup relatou acesso negado ao substituir
+  `scrcpy/adb.exe` enquanto o servidor ADB empacotado permanecia aberto.
+- A 1.1.20 sincroniza o Setup com a saída do Host por PID e encerra o servidor
+  ADB imediatamente antes da cópia. Também registra `adb.exe` como recurso no
+  mecanismo de fechamento de arquivos em uso do Inno Setup.

@@ -304,7 +304,7 @@ namespace WindowsHost
                         using var setup = Process.Start(new ProcessStartInfo
                         {
                             FileName = installer, UseShellExecute = true, Verb = "runas",
-                            Arguments = "/SILENT /NORESTART /CLOSEAPPLICATIONS /EZACUPDATE"
+                            Arguments = $"/SILENT /NORESTART /CLOSEAPPLICATIONS /EZACUPDATE /EZACPID={Environment.ProcessId}"
                         }) ?? throw new InvalidOperationException("Installer did not start");
                         installing = true;
                         _controlPaused = true;

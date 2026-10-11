@@ -1,5 +1,5 @@
 #ifndef Version
-  #define Version "1.1.19"
+  #define Version "1.1.20"
 #endif
 #ifndef Bundle
   #define Bundle "..\.publish-staging\windows"
@@ -52,9 +52,76 @@ Filename: "{app}\EzAcrossControl.exe"; Flags: nowait runasoriginaluser; Check: I
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""EZ Across Control LAN"""; Flags: runhidden; RunOnceId: RemoveLanFirewallRule
 [Code]
+function OpenProcess(dwDesiredAccess: DWORD; bInheritHandle: BOOL; dwProcessId: DWORD): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function WaitForSingleObject(hHandle: THandle; dwMilliseconds: DWORD): DWORD;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(hObject: THandle): BOOL;
+  external 'CloseHandle@kernel32.dll stdcall';
+function GetLastError: DWORD;
+  external 'GetLastError@kernel32.dll stdcall';
+
 function IsAutomaticUpdate: Boolean;
 begin
   Result := WizardSilent and (Pos('/EZACUPDATE', Uppercase(GetCmdTail)) > 0);
+end;
+
+procedure RegisterExtraCloseApplicationsResources;
+var AdbPath: String;
+begin
+  AdbPath := ExpandConstant('{app}\scrcpy\adb.exe');
+  if FileExists(AdbPath) and not RegisterExtraCloseApplicationsResource(False, AdbPath) then
+    Log('Could not register the installed ADB executable with Restart Manager.');
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var HostPid, WaitResult, WinError: DWORD; ResultCode: Integer; HostProcess: THandle; AdbPath: String;
+begin
+  Result := '';
+  HostPid := StrToIntDef(ExpandConstant('{param:EZACPID|0}'), 0);
+  if HostPid <> 0 then
+  begin
+    HostProcess := OpenProcess($00100000, False, HostPid); { SYNCHRONIZE }
+    if HostProcess = 0 then
+    begin
+      WinError := GetLastError;
+      { The host can exit between Setup starting and this check. }
+      if WinError <> 87 then
+      begin
+        Result := 'Could not safely wait for EZ Across Control to close (Windows error ' + IntToStr(WinError) + ').';
+        Exit;
+      end;
+    end
+    else
+    begin
+      try
+        WaitResult := WaitForSingleObject(HostProcess, 30000);
+        if WaitResult <> 0 then
+        begin
+          Result := 'EZ Across Control is still closing. Cancel setup, close the application, and try again.';
+          Exit;
+        end;
+      finally
+        CloseHandle(HostProcess);
+      end;
+    end;
+  end;
+
+  { Shut down the installed ADB server before Setup's recursive file copy. }
+  AdbPath := ExpandConstant('{app}\scrcpy\adb.exe');
+  if FileExists(AdbPath) then
+  begin
+    if not Exec(AdbPath, 'kill-server', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    begin
+      Result := 'Could not stop the EZ Across Control ADB server: ' + SysErrorMessage(ResultCode);
+      Exit;
+    end;
+    if ResultCode <> 0 then
+    begin
+      Result := 'The EZ Across Control ADB server did not stop (exit code ' + IntToStr(ResultCode) + '). Close other Android connections and try again.';
+      Exit;
+    end;
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
