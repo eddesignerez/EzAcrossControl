@@ -19,8 +19,9 @@ public static class LanPortPermission
         {
             dynamic policy = Activator.CreateInstance(Type.GetTypeFromProgID("HNetCfg.FwPolicy2")!)!;
             dynamic rule = policy.Rules.Item(RuleName);
+            var profiles = Convert.ToInt32(rule.Profiles);
             return rule.Enabled && rule.Direction == 1 && rule.Action == 1 && rule.Protocol == 6
-                && rule.Profiles == 2 && rule.RemoteAddresses.Equals("LocalSubnet", StringComparison.OrdinalIgnoreCase)
+                && (profiles & 2) == 2 && rule.RemoteAddresses.Equals("LocalSubnet", StringComparison.OrdinalIgnoreCase)
                 && rule.LocalPorts == port.ToString()
                 && string.Equals(rule.ApplicationName, executable, StringComparison.OrdinalIgnoreCase);
         }
@@ -39,9 +40,21 @@ public static class LanPortPermission
             });
             if (process == null) return false;
             await process.WaitForExitAsync();
-            return process.ExitCode == 0;
+            return process.ExitCode == 0 && await WaitForFirewallRuleAsync(port, Environment.ProcessPath!);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) { return false; }
+    }
+
+    private static async Task<bool> WaitForFirewallRuleAsync(int port, string executable)
+    {
+        // The elevated process can finish before the firewall COM policy is visible
+        // to this non-elevated process. Wait briefly before treating approval as failed.
+        for (var attempt = 0; attempt < 15; attempt++)
+        {
+            if (HasFirewallRule(port, executable)) return true;
+            await Task.Delay(200);
+        }
+        return false;
     }
 
     // Runs only in the short-lived elevated process, without opening a window.
@@ -92,7 +105,7 @@ public static class LanPortPermission
             rule.Profiles = 2; // Private networks only.
             rule.Enabled = true;
             if (!existing) policy.Rules.Add(rule);
-            return HasFirewallRule(port, executable) ? 0 : 5;
+            return 0;
         }
         catch { return 1; }
     }

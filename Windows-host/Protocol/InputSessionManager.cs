@@ -248,7 +248,7 @@ namespace WindowsHost.Protocol
                 var env = new MessageEnvelope
                 {
                     Type = type,
-                    ProtocolVersion = 1,
+                    ProtocolVersion = 2,
                     Sequence = seq,
                     Payload = payload
                 };

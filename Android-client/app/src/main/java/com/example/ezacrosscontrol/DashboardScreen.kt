@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -225,8 +226,12 @@ internal fun DashboardScreen(
 @Composable
 private fun LanguageSelector(language: String, onChange: (String) -> Unit) {
     val strings = LocalStrings.current
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
     val options = listOf(LanguageOption("system", strings["System Language"])) + strings.languages
+    val version = remember(context) {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "—"
+    }
     CardHeading("Language")
     Spacer(Modifier.height(8.dp))
     Box(Modifier.fillMaxWidth()) {
@@ -240,6 +245,11 @@ private fun LanguageSelector(language: String, onChange: (String) -> Unit) {
                 onChange(option.code)
             }) }
         }
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(strings["Application Version"], style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("v$version", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 

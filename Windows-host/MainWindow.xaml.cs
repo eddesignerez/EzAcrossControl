@@ -36,6 +36,30 @@ namespace WindowsHost
         private readonly SemaphoreSlim _readinessGate = new(1, 1);
         private CancellationTokenSource? _cts;
         private WebSocket? _currentSocket;
+        private readonly object _socketGate = new();
+        private readonly ConcurrentDictionary<WebSocket, string> _pendingChallenges = new();
+        private readonly ConcurrentDictionary<WebSocket, SessionQueues> _sessionQueues = new();
+        private const int MaxWebSocketMessageBytes = 64 * 1024;
+        private const int ProtocolVersion = 2;
+
+        private sealed class SessionQueues : IDisposable
+        {
+            public CancellationTokenSource Cancellation { get; } = new();
+            public Channel<string> Priority { get; } = Channel.CreateBounded<string>(new BoundedChannelOptions(64)
+            {
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = false
+            });
+            public Channel<string> Standard { get; } = Channel.CreateBounded<string>(new BoundedChannelOptions(256)
+            {
+                FullMode = BoundedChannelFullMode.DropOldest,
+                SingleReader = true,
+                SingleWriter = false
+            });
+
+            public void Dispose() => Cancellation.Dispose();
+        }
         
         public enum PointerOwnershipState
         {
@@ -69,14 +93,15 @@ namespace WindowsHost
         private AppSettings _appSettings;
         private InputSessionManager _sessionManager;
         private bool _showInputDebug = false;
-        private Channel<string> _priorityNetworkQueue = Channel.CreateUnbounded<string>();
-        private Channel<string> _standardNetworkQueue = Channel.CreateUnbounded<string>();
         private int _currentSessionId = 0;
         
         // V2 Scrcpy Engine
         private IScrcpyControlEngine _scrcpyEngine;
         private AndroidDeviceManager? _deviceManager;
         private WinForms.NotifyIcon? _trayIcon;
+        private WinForms.ToolStripMenuItem? _restoreTrayMenuItem;
+        private WinForms.ToolStripMenuItem? _exitTrayMenuItem;
+        private WinForms.ToolStripMenuItem? _restartTrayMenuItem;
         private Drawing.Icon? _connectedTrayIcon;
         private Drawing.Icon? _disconnectedTrayIcon;
         private bool? _trayConnected;
@@ -92,6 +117,7 @@ namespace WindowsHost
         {
             InitializeComponent();
             InitializeTrayIcon();
+            TxtApplicationVersion.Text = $"v{GetApplicationVersion()}";
             CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
             CmbLanguage.SelectedValue = Localization.Preference;
             ApplyLanguageLayout();
@@ -240,6 +266,13 @@ namespace WindowsHost
 
         }
 
+        private static string GetApplicationVersion()
+        {
+            var productVersion = FileVersionInfo.GetVersionInfo(Environment.ProcessPath ?? string.Empty).ProductVersion;
+            var version = productVersion?.Split('+', '-')[0];
+            return string.IsNullOrWhiteSpace(version) ? "—" : version;
+        }
+
         private void BtnThemeLight_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Light);
 
         private void BtnThemeDark_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Dark);
@@ -271,7 +304,9 @@ namespace WindowsHost
             } finally { _updatingLanguage = false; }
             ApplyLanguageLayout();
             if (_trayIcon?.ContextMenuStrip is { } menu) {
-                menu.Items[0].Text = Localization.T("Restore"); menu.Items[1].Text = Localization.T("Exit");
+                _restoreTrayMenuItem!.Text = Localization.T("Restore");
+                _exitTrayMenuItem!.Text = Localization.T("Exit");
+                _restartTrayMenuItem!.Text = Localization.T("Restart");
             }
             Dispatcher.BeginInvoke(() => {
                 UpdateLayout();
@@ -364,8 +399,13 @@ namespace WindowsHost
             _connectedTrayIcon = File.Exists(iconPath) ? new Drawing.Icon(iconPath) : (Drawing.Icon)Drawing.SystemIcons.Application.Clone();
             _disconnectedTrayIcon = File.Exists(offlineIconPath) ? new Drawing.Icon(offlineIconPath) : (Drawing.Icon)_connectedTrayIcon.Clone();
             var menu = new WinForms.ContextMenuStrip();
-            menu.Items.Add(Localization.T("Restore"), null, (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
-            menu.Items.Add(Localization.T("Exit"), null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
+            _restoreTrayMenuItem = new WinForms.ToolStripMenuItem(Localization.T("Restore"), null,
+                (_, _) => Dispatcher.BeginInvoke(RestoreFromTray));
+            _exitTrayMenuItem = new WinForms.ToolStripMenuItem(Localization.T("Exit"), null,
+                (_, _) => Dispatcher.BeginInvoke(ExitFromTray));
+            _restartTrayMenuItem = new WinForms.ToolStripMenuItem(Localization.T("Restart"), null,
+                (_, _) => Dispatcher.BeginInvoke(RestartApplication));
+            menu.Items.AddRange(new WinForms.ToolStripItem[] { _restoreTrayMenuItem, _exitTrayMenuItem, _restartTrayMenuItem });
             _trayIcon = new WinForms.NotifyIcon
             {
                 Icon = _disconnectedTrayIcon,
@@ -394,6 +434,34 @@ namespace WindowsHost
         {
             _exitRequested = true;
             Close();
+        }
+
+        private void RestartApplication()
+        {
+            var executablePath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+            {
+                Log("[APP] Unable to restart because the executable path is unavailable.");
+                return;
+            }
+
+            try
+            {
+                Log("[APP] Restarting the application.");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = AppContext.BaseDirectory,
+                    UseShellExecute = true
+                });
+                _exitRequested = true;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                Log($"[APP] Failed to restart the application: {ex.Message}");
+                MessageBox.Show(this, ex.Message, "EZ Across Control", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -457,7 +525,8 @@ namespace WindowsHost
                 !running ? "ErrorPrimaryBrush" : connected ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
             BtnStart.IsEnabled = !running && !_startingServer;
             BtnStop.IsEnabled = running;
-            TxtPort.IsEnabled = !running && !_startingServer;
+            TxtPort.IsEnabled = !_startingServer;
+            BtnApplyPort.IsEnabled = !_startingServer;
         }
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
@@ -468,6 +537,46 @@ namespace WindowsHost
                 MessageBox.Show(Localization.T("Invalid port"));
                 return;
             }
+
+            await StartServerAsync(port);
+        }
+
+        private async void BtnApplyPort_Click(object sender, RoutedEventArgs e)
+        {
+            if (_startingServer) return;
+            if (!int.TryParse(TxtPort.Text, out int port) || !LanPortPermission.IsValidPort(port))
+            {
+                MessageBox.Show(Localization.T("Invalid port"));
+                return;
+            }
+
+            bool running = _listener?.IsListening == true;
+            if (!running)
+            {
+                _appSettings.ServerPort = port;
+                ConfigManager.Save(_appSettings);
+                Log($"[SERVER] Port {port} saved. The LAN server remains stopped.");
+                return;
+            }
+
+            if (_appSettings.ServerPort == port) return;
+            if (MessageBox.Show(this, string.Format(Localization.T("Restart Application for Port"), port),
+                    Localization.T("Change Port"), MessageBoxButton.OKCancel, MessageBoxImage.Information)
+                != MessageBoxResult.OK)
+            {
+                TxtPort.Text = _appSettings.ServerPort.ToString();
+                return;
+            }
+
+            _appSettings.ServerPort = port;
+            ConfigManager.Save(_appSettings);
+            Log($"[SERVER] Port {port} saved. Restarting the application to apply it.");
+            RestartApplication();
+        }
+
+        private async Task StartServerAsync(int port)
+        {
+            if (_startingServer || _listener?.IsListening == true) return;
             _startingServer = true;
             RefreshServerVisuals();
             string prefix = $"http://+:{port}/";
@@ -521,7 +630,6 @@ namespace WindowsHost
             Log($"Server started on {prefix}");
             
             _ = AcceptConnectionsAsync(_listener!, _cts!.Token);
-            _ = NetworkWriterLoop(_cts.Token);
         }
 
         private async Task AcceptConnectionsAsync(HttpListener listener, CancellationToken token)
@@ -603,22 +711,18 @@ namespace WindowsHost
                     return;
                 }
                 var wsContext = await context.AcceptWebSocketAsync(null);
-                Log("Client connected.");
-                
-                if (_currentSocket != null && _currentSocket.State == WebSocketState.Open)
+                var socket = wsContext.WebSocket;
+                var socketAddress = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
+                Log("Client connected; awaiting authenticated HELLO.");
+                var challenge = PairingAuthenticator.CreateChallenge();
+                _pendingChallenges[socket] = challenge;
+                await SendDirectAsync(socket, new MessageEnvelope
                 {
-                    Log("Closing previous connection.");
-                    await _currentSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "New client connected", CancellationToken.None);
-                }
-
-                _currentSocket = wsContext.WebSocket;
-                _companionAddress = context.Request.RemoteEndPoint?.Address.MapToIPv4().ToString();
-                _androidHandshakeComplete = false;
-                Dispatcher.InvokeAsync(RefreshServerVisuals);
-                // Dispatcher.Invoke(() => TxtAndroidStatus.Text = "Connected");
-                _sessionManager.SetState(InputSessionState.Connected);
-
-                await ReceiveLoopAsync(_currentSocket);
+                    Type = "PAIR_CHALLENGE",
+                    ProtocolVersion = ProtocolVersion,
+                    Payload = new { Nonce = challenge }
+                });
+                await ReceiveLoopAsync(socket, socketAddress);
             }
             catch (Exception ex)
             {
@@ -626,7 +730,7 @@ namespace WindowsHost
             }
         }
 
-        private async Task ReceiveLoopAsync(WebSocket socket)
+        private async Task ReceiveLoopAsync(WebSocket socket, string? remoteAddress)
         {
             var token = _cts!.Token;
             var buffer = new byte[4096];
@@ -634,16 +738,12 @@ namespace WindowsHost
             {
                 while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
                 {
-                    var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
-                    if (result.MessageType == WebSocketMessageType.Close)
+                    var message = await ReceiveTextMessageAsync(socket, buffer, token);
+                    if (message == null)
                     {
-                        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnected", CancellationToken.None);
-                        Log("Client disconnected gracefully.");
                         break;
                     }
-                    
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    HandleMessage(message, socket);
+                    HandleMessage(message, socket, remoteAddress);
                 }
             }
             catch (Exception ex)
@@ -652,8 +752,10 @@ namespace WindowsHost
             }
             finally
             {
+                _pendingChallenges.TryRemove(socket, out _);
                 if (ReferenceEquals(socket, _currentSocket))
                 {
+                    StopSessionWriter(socket);
                     _currentSocket = null;
                     _androidHandshakeComplete = false;
 
@@ -674,22 +776,48 @@ namespace WindowsHost
             }
         }
 
-        private void HandleMessage(string json, WebSocket socket)
+        private async Task<string?> ReceiveTextMessageAsync(WebSocket socket, byte[] buffer, CancellationToken token)
         {
-            if (!ReferenceEquals(socket, _currentSocket)) return;
+            using var stream = new MemoryStream();
+            while (true)
+            {
+                var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    if (socket.State == WebSocketState.CloseReceived)
+                        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Client disconnected", CancellationToken.None);
+                    Log("Client disconnected gracefully.");
+                    return null;
+                }
+                if (result.MessageType != WebSocketMessageType.Text || stream.Length + result.Count > MaxWebSocketMessageBytes)
+                {
+                    await CloseRejectedSocketAsync(socket, "Invalid or oversized WebSocket message");
+                    return null;
+                }
+                stream.Write(buffer, 0, result.Count);
+                if (result.EndOfMessage) return Encoding.UTF8.GetString(stream.GetBuffer(), 0, (int)stream.Length);
+            }
+        }
+
+        private void HandleMessage(string json, WebSocket socket, string? remoteAddress)
+        {
             try
             {
                 using var doc = JsonDocument.Parse(json);
-                var type = doc.RootElement.GetProperty("Type").GetString();
-                var payload = doc.RootElement.GetProperty("Payload");
+                var root = doc.RootElement;
+                var type = root.GetProperty("Type").GetString();
+                var payload = root.GetProperty("Payload");
 
                 if (type == "HELLO")
                 {
-                    int clientVersion = doc.RootElement.TryGetProperty("ProtocolVersion", out var pv) ? pv.GetInt32() : 0;
-                    var deviceName = payload.GetProperty("DeviceName").GetString();
-                    _companionDeviceName = deviceName;
-                    Dispatcher.Invoke(() => TxtDeviceName.Text = deviceName);
-                    Log($"Received HELLO from {deviceName} (v{clientVersion})");
+                    int clientVersion = root.TryGetProperty("ProtocolVersion", out var pv) ? pv.GetInt32() : 0;
+                    if (clientVersion != ProtocolVersion || !TryActivateCompanion(socket, remoteAddress, payload))
+                    {
+                        _ = CloseRejectedSocketAsync(socket, clientVersion == ProtocolVersion
+                            ? "Pairing was not approved or authentication failed"
+                            : "Protocol v2 required; update both Host and Android companion");
+                        return;
+                    }
 
                     _controlPaused = false;
                     if (payload.TryGetProperty("ConnectionMode", out var requestedMode))
@@ -703,32 +831,34 @@ namespace WindowsHost
                             CmbConnectionMode.SelectedIndex = (int)mode;
                         });
                     }
-                    _androidHandshakeComplete = true;
                     Dispatcher.InvokeAsync(RefreshServerVisuals);
                     _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
                     Dispatcher.InvokeAsync(async () => await StartEngineAsync());
 
-                    if (clientVersion != 1)
-                    {
-                        Log($"Warning: Client connected with incompatible protocol version {clientVersion}");
-                    }
-
                     var welcomeEnv = new MessageEnvelope
                     {
                         Type = "WELCOME",
-                        ProtocolVersion = 1,
+                        ProtocolVersion = ProtocolVersion,
                         Payload = new { }
                     };
                     SendMessage(socket, JsonSerializer.Serialize(welcomeEnv));
                     _sessionManager.SetState(InputSessionState.Idle);
+                }
+                else if (!ReferenceEquals(socket, _currentSocket))
+                {
+                    _ = CloseRejectedSocketAsync(socket, "Authenticated HELLO required");
+                }
+                else if (!root.TryGetProperty("ProtocolVersion", out var version) || version.GetInt32() != ProtocolVersion)
+                {
+                    _ = CloseRejectedSocketAsync(socket, "Protocol v2 required");
                 }
                 else if (type == "PING")
                 {
                     var pongEnv = new MessageEnvelope
                     {
                         Type = "PONG",
-                        ProtocolVersion = 1,
+                        ProtocolVersion = ProtocolVersion,
                         Payload = payload
                     };
                     SendMessage(socket, JsonSerializer.Serialize(pongEnv));
@@ -779,7 +909,110 @@ namespace WindowsHost
             catch (Exception ex)
             {
                 Log($"Message parse error: {ex.Message}");
+                _ = CloseRejectedSocketAsync(socket, "Malformed protocol message");
             }
+        }
+
+        private bool TryActivateCompanion(WebSocket socket, string? remoteAddress, JsonElement payload)
+        {
+            if (!_pendingChallenges.TryRemove(socket, out var challenge))
+            {
+                Log("[PAIRING] HELLO rejected: no pending challenge for this socket.");
+                return false;
+            }
+            if (!payload.TryGetProperty("InstallationId", out var idElement)
+                || !payload.TryGetProperty("PublicKey", out var keyElement)
+                || !payload.TryGetProperty("Signature", out var signatureElement))
+            {
+                Log("[PAIRING] HELLO rejected: required identity fields are missing.");
+                return false;
+            }
+
+            var installationId = idElement.GetString();
+            var publicKey = keyElement.GetString();
+            var signature = signatureElement.GetString();
+            var deviceName = payload.TryGetProperty("DeviceName", out var nameElement) ? nameElement.GetString() : null;
+            var suppliedCode = payload.TryGetProperty("PairingCode", out var codeElement) ? codeElement.GetString() : null;
+            if (!PairingAuthenticator.IsValidInstallationId(installationId)
+                || string.IsNullOrWhiteSpace(publicKey) || publicKey.Length > 2048
+                || string.IsNullOrWhiteSpace(signature) || signature.Length > 1024
+                || string.IsNullOrWhiteSpace(deviceName) || deviceName.Length > 128)
+            {
+                Log("[PAIRING] HELLO rejected: identity field validation failed.");
+                return false;
+            }
+            if (!PairingAuthenticator.Verify(publicKey, challenge, installationId!, signature))
+            {
+                Log("[PAIRING] HELLO rejected: signature verification failed.");
+                return false;
+            }
+
+            string expectedCode;
+            try { expectedCode = PairingAuthenticator.CreatePairingCode(publicKey); }
+            catch
+            {
+                Log("[PAIRING] HELLO rejected: pairing-code calculation failed.");
+                return false;
+            }
+            if (!string.Equals(expectedCode, suppliedCode, StringComparison.Ordinal))
+            {
+                Log("[PAIRING] HELLO rejected: pairing code did not match the public key.");
+                return false;
+            }
+
+            var existing = _appSettings.CompanionPairing;
+            var isKnownKey = existing != null
+                && existing.InstallationId == installationId
+                && existing.PublicKey == publicKey;
+            if (!isKnownKey)
+            {
+                var approval = Dispatcher.Invoke(() => MessageBox.Show(
+                    $"Approve this Android companion?\n\nDevice: {deviceName}\nPairing code: {expectedCode}\n\nApprove only if the same code is visible in the Android app.",
+                    "EZ Across Control pairing", MessageBoxButton.YesNo, MessageBoxImage.Question));
+                if (approval != MessageBoxResult.Yes) return false;
+                _appSettings.CompanionPairing = new CompanionPairing
+                {
+                    InstallationId = installationId!, DeviceName = deviceName!, PublicKey = publicKey
+                };
+                ConfigManager.Save(_appSettings);
+                Log($"Approved Android pairing for {deviceName} ({installationId}).");
+            }
+
+            WebSocket? previous;
+            lock (_socketGate)
+            {
+                previous = _currentSocket;
+                _currentSocket = socket;
+                _companionAddress = remoteAddress;
+                _companionDeviceName = deviceName;
+                _androidHandshakeComplete = true;
+                _sessionQueues[socket] = new SessionQueues();
+            }
+            _ = NetworkWriterLoop(socket, _sessionQueues[socket], _cts!.Token);
+            if (previous != null && !ReferenceEquals(previous, socket))
+            {
+                StopSessionWriter(previous);
+                _ = CloseRejectedSocketAsync(previous, "Companion reconnected");
+            }
+            Dispatcher.Invoke(() => TxtDeviceName.Text = deviceName);
+            Log($"Authenticated Android companion {deviceName} (v{ProtocolVersion}).");
+            return true;
+        }
+
+        private async Task SendDirectAsync(WebSocket socket, MessageEnvelope message)
+        {
+            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+            await socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts?.Token ?? CancellationToken.None);
+        }
+
+        private async Task CloseRejectedSocketAsync(WebSocket socket, string reason)
+        {
+            try
+            {
+                if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
+                    await socket.CloseOutputAsync(WebSocketCloseStatus.PolicyViolation, reason, CancellationToken.None);
+            }
+            catch { socket.Abort(); }
         }
 
         private void PositionMouseOnReturn(string returnEdgeStr)
@@ -836,33 +1069,35 @@ namespace WindowsHost
             }
         }
 
-        private async Task NetworkWriterLoop(CancellationToken token)
+        private async Task NetworkWriterLoop(WebSocket socket, SessionQueues queues, CancellationToken serverToken)
         {
-            while (!token.IsCancellationRequested)
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(serverToken, queues.Cancellation.Token);
+            var token = linked.Token;
+            while (!token.IsCancellationRequested && ReferenceEquals(socket, _currentSocket))
             {
                 try
                 {
                     string? message = null;
-                    if (_priorityNetworkQueue.Reader.TryRead(out message))
+                    if (queues.Priority.Reader.TryRead(out message))
                     {
                         // Priority message
                     }
-                    else if (_standardNetworkQueue.Reader.TryRead(out message))
+                    else if (queues.Standard.Reader.TryRead(out message))
                     {
                         // Standard message
                     }
                     else
                     {
-                        var priTask = _priorityNetworkQueue.Reader.WaitToReadAsync(token).AsTask();
-                        var stdTask = _standardNetworkQueue.Reader.WaitToReadAsync(token).AsTask();
+                        var priTask = queues.Priority.Reader.WaitToReadAsync(token).AsTask();
+                        var stdTask = queues.Standard.Reader.WaitToReadAsync(token).AsTask();
                         await Task.WhenAny(priTask, stdTask);
                         continue;
                     }
 
-                    if (message != null && _currentSocket != null && _currentSocket.State == WebSocketState.Open)
+                    if (message != null && ReferenceEquals(socket, _currentSocket) && socket.State == WebSocketState.Open)
                     {
                         var bytes = Encoding.UTF8.GetBytes(message);
-                        await _currentSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, token);
+                        await socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, token);
                     }
                 }
                 catch (OperationCanceledException) { break; }
@@ -875,14 +1110,9 @@ namespace WindowsHost
 
         private void SendMessage(string message, bool isPriority)
         {
-            if (isPriority)
-            {
-                _priorityNetworkQueue.Writer.TryWrite(message);
-            }
-            else
-            {
-                _standardNetworkQueue.Writer.TryWrite(message);
-            }
+            var socket = _currentSocket;
+            if (socket == null || !_sessionQueues.TryGetValue(socket, out var queues)) return;
+            (isPriority ? queues.Priority : queues.Standard).Writer.TryWrite(message);
         }
 
         private void SendMessage(WebSocket socket, string message)
@@ -890,6 +1120,14 @@ namespace WindowsHost
             if (socket == _currentSocket)
             {
                 SendMessage(message, true); // initial handshake is high priority
+            }
+        }
+
+        private void StopSessionWriter(WebSocket socket)
+        {
+            if (_sessionQueues.TryRemove(socket, out var queues))
+            {
+                queues.Cancellation.Cancel();
             }
         }
 
@@ -911,6 +1149,7 @@ namespace WindowsHost
                 
                 _androidHandshakeComplete = false;
                 SafeReleaseInputOwnership("Server stopped");
+                if (_currentSocket != null) StopSessionWriter(_currentSocket);
                 _currentSocket?.Abort();
                 _currentSocket = null;
                 RefreshServerVisuals();
@@ -1225,7 +1464,7 @@ namespace WindowsHost
                 SendMessage(_currentSocket!, JsonSerializer.Serialize(new MessageEnvelope
                 {
                     Type = "SESSION_STATUS",
-                    ProtocolVersion = 1,
+                    ProtocolVersion = ProtocolVersion,
                     Payload = new
                     {
                         ControlTransport = _engineTransport == "-" ? null : _engineTransport,
@@ -1297,12 +1536,27 @@ namespace WindowsHost
             {
                 Edge = handoff.Edge.ToString(),
                 SessionId = _currentSessionId,
-                EntryNormalizedY = 0.5,
+                EntryNormalizedY = GetEntryNormalizedCoordinate(handoff.Edge),
                 ClientTxTimestamp = Stopwatch.GetTimestamp()
             });
             Log(UsesNativeScrcpyInput()
                 ? $"Native {_engineTransport} capture started. Android return edge armed. Edge={handoff.Edge}, Session={_currentSessionId}"
                 : $"Beginning Android handoff. Edge={handoff.Edge}, Session={_currentSessionId}");
+        }
+
+        private double GetEntryNormalizedCoordinate(ScreenEdge edge)
+        {
+            var pointer = _pointerBeforeCapture;
+            NativeMethods.POINT point;
+            if (pointer.HasValue) point = pointer.Value;
+            else if (!NativeMethods.GetCursorPos(out point)) return 0.5;
+            var monitor = new MonitorGeometry().GetMonitorFromPoint(point.x, point.y);
+            if (monitor == null) return 0.5;
+            var alongVerticalEdge = edge == ScreenEdge.Left || edge == ScreenEdge.Right;
+            var start = alongVerticalEdge ? monitor.Bounds.top : monitor.Bounds.left;
+            var length = alongVerticalEdge ? monitor.Bounds.bottom - monitor.Bounds.top : monitor.Bounds.right - monitor.Bounds.left;
+            var coordinate = alongVerticalEdge ? point.y : point.x;
+            return length > 1 ? Math.Clamp((coordinate - start) / (double)(length - 1), 0, 1) : 0.5;
         }
 
         // Legacy Uhid routing removed for V2

@@ -10,7 +10,16 @@ namespace WindowsHost
         public int ServerPort { get; set; } = Config.DefaultPort;
         public EdgeOptions EdgeTransition { get; set; } = new EdgeOptions();
         public WindowsHost.Engine.ConnectionMode ConnectionMode { get; set; } = WindowsHost.Engine.ConnectionMode.Auto;
+        // Only the public key is retained. The Android private key remains in Android Keystore.
+        public CompanionPairing? CompanionPairing { get; set; }
         // Theme could be migrated here later
+    }
+
+    public class CompanionPairing
+    {
+        public string InstallationId { get; set; } = string.Empty;
+        public string DeviceName { get; set; } = string.Empty;
+        public string PublicKey { get; set; } = string.Empty;
     }
 
     public static class ConfigManager

@@ -214,9 +214,13 @@
                                 <TextBlock Text="{DynamicResource Ui.Local IP}" Style="{StaticResource LabelStyle}"/>
                                 <TextBlock x:Name="TxtLocalIP" Grid.Column="1" Text="{DynamicResource Ui.Unknown}" Style="{StaticResource ValueStyle}" TextTrimming="CharacterEllipsis"/>
                             </Grid>
-                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="{DynamicResource Ui.Port}" Style="{StaticResource LabelStyle}"/>
                                 <TextBox x:Name="TxtPort" Grid.Column="1" Style="{StaticResource NumericFieldStyle}" HorizontalAlignment="Left"/>
+                                <Button x:Name="BtnApplyPort" Grid.Column="3" Width="36" Height="36" Padding="0" ToolTip="{DynamicResource Ui.Change Port}" AutomationProperties.Name="{DynamicResource Ui.Change Port}" Click="BtnApplyPort_Click" Style="{StaticResource SecondaryButtonStyle}">
+                                    <Path Width="18" Height="18" Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          Data="M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04Z"/>
+                                </Button>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -306,7 +310,16 @@
                         <TextBlock Text="{DynamicResource Ui.Diagnostics &amp; Activity Log}" Style="{StaticResource LabelStyle}" FontWeight="Bold" Margin="0,0,0,10"/>
                         <Grid Margin="0,0,0,11"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 <TextBlock Text="{DynamicResource Ui.Diagnostics}" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
-<StackPanel Grid.Column="1" Orientation="Horizontal"><TextBlock Text="{DynamicResource Ui.Language}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/><ComboBox x:Name="CmbLanguage" Width="190" DisplayMemberPath="Label" SelectedValuePath="Code" SelectionChanged="CmbLanguage_SelectionChanged"/></StackPanel></Grid>
+<StackPanel Grid.Column="1">
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <TextBlock Text="{DynamicResource Ui.Language}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+        <ComboBox x:Name="CmbLanguage" Width="190" DisplayMemberPath="Label" SelectedValuePath="Code" SelectionChanged="CmbLanguage_SelectionChanged"/>
+    </StackPanel>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+        <TextBlock Text="{DynamicResource Ui.Application Version}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+        <TextBlock x:Name="TxtApplicationVersion" Style="{StaticResource ValueStyle}" FontSize="12"/>
+    </StackPanel>
+</StackPanel></Grid>
                         <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource LabelStyle}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEngineState}" Style="{StaticResource ValueStyle}"/>

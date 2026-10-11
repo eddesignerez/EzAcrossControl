@@ -1,220 +1,65 @@
 # EZ Across Control - Communication Protocol
 
-The companion session uses LAN WebSockets with JSON. A read-only LAN HTTP readiness query uses the same configured Host IP and port.
+EZ Across Control uses JSON over LAN WebSockets. The default, configurable port is `8765`; ports 3000, 4000, 5000 and 5173 are reserved. A read-only `GET /readiness?device=<Build.MODEL>` query uses the same Host IP and port and never starts control.
 
-## Protocol Versioning
-The current protocol version is `1`. Both the `HELLO` and `WELCOME` messages exchange this version.
-Clients or hosts should cleanly disconnect if they do not support the received version.
+## Version 2 and compatibility
 
-## Message Envelope
-Every message must be wrapped in a standard envelope containing routing, sequence, and timing information:
+The current protocol version is `2`. Both endpoints must use v2; a v1 client or Host is rejected with an upgrade message. Upgrade Windows Host and Android companion together.
 
-```json
-{
-  "Type": "MESSAGE_TYPE",
-  "ProtocolVersion": 1,
-  "Sequence": 12345,
-  "Timestamp": 1720000000000,
-  "Payload": { ... }
-}
-```
-- **Type**: Defines the schema of the `Payload`.
-- **ProtocolVersion**: Always `1` for this version.
-- **Sequence**: A monotonically increasing integer starting from 1 for each session.
-- **Timestamp**: Standard Unix time in milliseconds.
-- **Payload**: An object specific to the `Type`.
+v2 authenticates one approved Android installation. It is not transport encryption: the WebSocket remains `ws://` on the trusted LAN and no claim of confidentiality is made.
 
-## Supported Messages (Phase 1 & 2)
-
-### Handshake
-
-#### HELLO
-Sent by the Client upon connection to introduce itself to the server.
-```json
-{
-  "Type": "HELLO",
-  "ProtocolVersion": 1,
-  "Sequence": 1,
-  "Timestamp": 1695034800000,
-  "Payload": {
-    "DeviceName": "Android Tablet X",
-    "ConnectionMode": "Auto"
-  }
-}
-```
-
-`ConnectionMode` is optional for older clients. Accepted values are `Auto`, `Wi-Fi`, and `USB`. It selects the Host's ADB control transport; companion messages always use LAN. Auto prefers authorized Wi-Fi ADB, then authorized USB ADB.
-
-#### CONTROL_STOP
-Sent by the current, handshaken Android companion when Stop Control is pressed. The Host blocks automatic and manual capture, releases native input, and publishes `SESSION_STATUS` with `ControlEnabled: false`. Reconnecting with a new HELLO resumes control. This does not change Android Accessibility or debugging settings.
+## Envelope
 
 ```json
-{"Type":"CONTROL_STOP","ProtocolVersion":1,"Payload":{}}
+{"Type":"MESSAGE_TYPE","ProtocolVersion":2,"Sequence":1,"Timestamp":1720000000000,"Payload":{}}
 ```
 
-#### LAN readiness query
-Before connecting, the companion can issue `GET /readiness?device=<Build.MODEL>`. The Host returns only `UsbReady` and `WifiReady` booleans for online, authorized ADB devices matching the requester's address/model. Offline and unauthorized entries are excluded. This read does not start control or change settings. A missing or unreachable endpoint is not proof of readiness.
+`Type` defines `Payload`; `Sequence` and `Timestamp` are session metadata. Field casing is PascalCase on Host messages; the Android client accepts both PascalCase and camelCase for compatibility inside v2.
 
-#### WELCOME
-Sent by the Server in response to a `HELLO` message.
+## Pairing handshake
+
+1. The Host accepts a provisional socket and sends `PAIR_CHALLENGE` with a fresh random `Nonce`.
+2. Android replies with `HELLO`: its stable installation UUID, Android-Keystore public key, ECDSA signature over `Nonce|InstallationId`, device name, requested ADB mode, and a six-digit verification code derived from that public key.
+3. For an unknown key (including an approved device with a rotated key), Windows shows the device and code. The user must approve only if the same code is visible on Android. Windows retains the public key only; the Android private key never leaves Android Keystore.
+4. For a known key, the Host verifies the challenge signature and sends `WELCOME`. Only then does it replace a previous authenticated companion and start any ADB discovery. Reconnect never captures input automatically.
+
 ```json
-{
-  "Type": "WELCOME",
-  "ProtocolVersion": 1,
-  "Sequence": 1,
-  "Timestamp": 1695034800000,
-  "Payload": {}
-}
+{"Type":"PAIR_CHALLENGE","ProtocolVersion":2,"Payload":{"Nonce":"base64-random-32-bytes"}}
 ```
 
-#### PING / PONG
-Used for latency measurement.
 ```json
-{
-  "Type": "PING", // or PONG
-  "ProtocolVersion": 1,
-  "Sequence": 2,
-  "Timestamp": 1695034800000,
-  "Payload": {
-    "OriginalTimestamp": 1695034800000
-  }
-}
+{"Type":"HELLO","ProtocolVersion":2,"Payload":{"DeviceName":"Android Tablet X","ConnectionMode":"Auto","InstallationId":"uuid","PublicKey":"base64-x509-spki","Signature":"base64-ecdsa","PairingCode":"123456"}}
 ```
 
-#### SESSION_STATUS
-Sent by the Host after HELLO and whenever its control engine or selected transport changes.
-The companion WebSocket remains on the LAN. ControlTransport describes the actual
-scrcpy input transport selected by the Host, not the companion socket.
+`ConnectionMode` is `Auto`, `Wi-Fi`, or `USB`; it selects the Host's ADB/scrcpy input transport. The companion WebSocket is always LAN. A rejected pairing closes with policy violation and must not displace the currently authenticated companion.
+
 ```json
-{
-  "Type": "SESSION_STATUS",
-  "ProtocolVersion": 1,
-  "Payload": {
-    "ControlTransport": "Wi-Fi",
-    "EngineState": "Ready",
-    "ControlEnabled": true
-  }
-}
+{"Type":"WELCOME","ProtocolVersion":2,"Payload":{}}
 ```
-ControlTransport is "USB", "Wi-Fi", or null when the control engine is unavailable.
-The client displays a green transport label only for a confirmed USB or Wi-Fi value.
-Older clients may ignore this optional status message.
 
-### Input Injection (Phase 2.3+)
+## Session messages
 
-Input injection uses normalized coordinates `[0.0, 1.0]` for mouse positions. The normalization is relative to the *entire virtual screen bounding box* of the Host.
+All post-handshake messages require protocol v2 and the active authenticated socket.
 
-#### INPUT_MOUSE_MOVE
 ```json
-{
-  "Type": "INPUT_MOUSE_MOVE",
-  "ProtocolVersion": 1,
-  "Sequence": 3,
-  "Timestamp": 1695034800050,
-  "Payload": {
-    "X": 1920,
-    "Y": 1080,
-    "DeltaX": 5,
-    "DeltaY": -2,
-    "NormalizedX": 0.5,
-    "NormalizedY": 0.5,
-    "IsInjected": false
-  }
-}
+{"Type":"PING","ProtocolVersion":2,"Payload":{"Timestamp":1720000000000}}
+{"Type":"PONG","ProtocolVersion":2,"Payload":{"Timestamp":1720000000000}}
+{"Type":"SESSION_STATUS","ProtocolVersion":2,"Payload":{"ControlTransport":"Wi-Fi","EngineState":"Ready","ControlEnabled":true}}
+{"Type":"CONTROL_STOP","ProtocolVersion":2,"Payload":{}}
 ```
 
-#### INPUT_MOUSE_BUTTON
+`ControlTransport` is `USB`, `Wi-Fi`, or `null`. `CONTROL_STOP` releases control and blocks capture until a successful authenticated reconnect; it does not alter Android Accessibility or debugging settings.
+
+## Input and handoff
+
+Input messages are sent only during the active session: `INPUT_MOUSE_MOVE`, `INPUT_MOUSE_BUTTON`, `INPUT_MOUSE_WHEEL`, `INPUT_TEXT_COMMIT`, `INPUT_KEY_DOWN`, and `INPUT_KEY_UP`. Normalized mouse coordinates remain `[0,1]` across the Host virtual screen.
+
 ```json
-{
-  "Type": "INPUT_MOUSE_BUTTON",
-  "ProtocolVersion": 1,
-  "Sequence": 4,
-  "Timestamp": 1695034800100,
-  "Payload": {
-    "Button": "Left",     // Left, Right, Middle, X1, X2
-    "Action": "Down",     // Down, Up
-    "X": 1920,
-    "Y": 1080,
-    "IsInjected": false
-  }
-}
+{"Type":"INPUT_HANDOFF_BEGIN","ProtocolVersion":2,"Payload":{"Edge":"Right","SessionId":7,"EntryNormalizedY":0.25,"ClientTxTimestamp":0}}
 ```
 
-#### INPUT_MOUSE_WHEEL
-```json
-{
-  "Type": "INPUT_MOUSE_WHEEL",
-  "ProtocolVersion": 1,
-  "Sequence": 5,
-  "Timestamp": 1695034800200,
-  "Payload": {
-    "Axis": "Vertical",   // Vertical, Horizontal
-    "Delta": 120,
-    "X": 1920,
-    "Y": 1080
-  }
-}
-```
+`EntryNormalizedY` means the point along the crossed edge: vertical coordinate for Left/Right, horizontal coordinate for Top/Bottom. The Android pointer enters at the corresponding proportional position. `RETURN_TO_WINDOWS` includes the same `SessionId`; the Host keeps existing drag safety and edge rearm behavior. `INPUT_HANDOFF_END` and `INPUT_HANDOFF_CANCEL` terminate the active handoff.
 
-#### INPUT_KEY_DOWN / INPUT_KEY_UP
-```json
-{
-  "Type": "INPUT_KEY_DOWN", // or INPUT_KEY_UP
-  "ProtocolVersion": 1,
-  "Sequence": 6,
-  "Timestamp": 1695034800300,
-  "Payload": {
-    "VirtualKeyCode": 65, // Example: 'A'
-    "ScanCode": 30,
-    "IsExtended": false,
-    "IsInjected": false,
-    "Modifiers": {
-      "Ctrl": false,
-      "Shift": true,
-      "Alt": false,
-      "Win": false
-    }
-  }
-}
-```
+## Bounds and resilience
 
-### Handoff Management
-
-#### INPUT_HANDOFF_BEGIN
-Sent when the cursor intends to transfer to the client.
-```json
-{
-  "Type": "INPUT_HANDOFF_BEGIN",
-  "ProtocolVersion": 1,
-  "Sequence": 7,
-  "Timestamp": 1695034800400,
-  "Payload": {
-    "Edge": "Right",
-    "EntryNormalizedY": 0.5
-  }
-}
-```
-
-#### INPUT_HANDOFF_CANCEL
-Sent if the transition was aborted.
-```json
-{
-  "Type": "INPUT_HANDOFF_CANCEL",
-  "ProtocolVersion": 1,
-  "Sequence": 8,
-  "Timestamp": 1695034800500,
-  "Payload": {}
-}
-```
-
-#### INPUT_HANDOFF_END
-Sent when the client returns control to the Host.
-```json
-{
-  "Type": "INPUT_HANDOFF_END",
-  "ProtocolVersion": 1,
-  "Sequence": 9,
-  "Timestamp": 1695034800600,
-  "Payload": {}
-}
-```
+Host WebSocket messages are assembled across fragments and rejected when binary or larger than 64 KiB. Each authenticated session owns bounded outbound queues (64 priority and 256 standard messages); a stale session cannot send into a replacement session. Android reconnects after loss/sleep with capped exponential delays (1, 2, 4, 8, 16, 30 seconds, up to eight tries), then requires a manual retry.

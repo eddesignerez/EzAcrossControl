@@ -138,7 +138,7 @@ object AndroidControlManager {
         }
     }
 
-    fun handleHandoffBegin(edge: String, sessionId: Int, clientTxTimestamp: Long) {
+    fun handleHandoffBegin(edge: String, sessionId: Int, entryNormalized: Double, clientTxTimestamp: Long) {
         if (isManuallyStopped) return
         if (accessibilityService != null) {
             coordinateMapper?.updateMetrics()
@@ -154,18 +154,18 @@ object AndroidControlManager {
             when (edge) {
                 "Right" -> {
                     pointerX = remoteEntryInsetPx
-                    pointerY = height / 2f
+                    pointerY = EdgeEntryMapper.coordinate(height, entryNormalized)
                 }
                 "Left" -> {
                     pointerX = width.toFloat() - remoteEntryInsetPx
-                    pointerY = height / 2f
+                    pointerY = EdgeEntryMapper.coordinate(height, entryNormalized)
                 }
                 "Top" -> {
-                    pointerX = width / 2f
+                    pointerX = EdgeEntryMapper.coordinate(width, entryNormalized)
                     pointerY = height.toFloat() - remoteEntryInsetPx
                 }
                 "Bottom" -> {
-                    pointerX = width / 2f
+                    pointerX = EdgeEntryMapper.coordinate(width, entryNormalized)
                     pointerY = remoteEntryInsetPx
                 }
                 else -> {

@@ -14,7 +14,7 @@ class InputSessionManager {
     var onMouseMove: ((Double, Double, Int, Int) -> Unit)? = null
     var onMouseButton: ((String, String) -> Unit)? = null
     var onMouseWheel: ((Int, Int) -> Unit)? = null
-    var onHandoffBegin: ((String, Int, Long) -> Unit)? = null
+    var onHandoffBegin: ((String, Int, Double, Long) -> Unit)? = null
     var onHandoffEnd: ((Int) -> Unit)? = null
     var onHandoffCancel: (() -> Unit)? = null
     var onTextCommit: ((String) -> Unit)? = null
@@ -59,8 +59,9 @@ class InputSessionManager {
                     val map = envelope.payload
                     val edge = map.optString("edge", map.optString("Edge", ""))
                     val sessionId = map.optInt("sessionId", map.optInt("SessionId", -1))
+                    val entryNormalized = map.optDouble("entryNormalizedY", map.optDouble("EntryNormalizedY", 0.5))
                     val clientTxTimestamp = map.optLong("clientTxTimestamp", map.optLong("ClientTxTimestamp", 0L))
-                    onHandoffBegin?.invoke(edge, sessionId, clientTxTimestamp)
+                    onHandoffBegin?.invoke(edge, sessionId, entryNormalized, clientTxTimestamp)
                 }
                 "INPUT_HANDOFF_END" -> {
                     val map = envelope.payload

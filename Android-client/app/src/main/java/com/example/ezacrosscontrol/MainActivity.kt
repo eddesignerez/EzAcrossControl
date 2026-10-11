@@ -184,9 +184,12 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         }
         webSocketClient.onConnectionFailure = { message ->
             coroutineScope.launch {
-                isConnecting = false
+                isConnecting = !(message.contains("pausada") || message.contains("incompatível") || message.contains("recusado"))
                 status = message
             }
+        }
+        webSocketClient.onPairingRequested = { code ->
+            coroutineScope.launch { status = "Código de pareamento: $code. Confirme o mesmo código no Windows." }
         }
         webSocketClient.onLatencyUpdated = { l ->
             latency = l
@@ -212,7 +215,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         sessionManager.onTextCommit = { text -> AndroidControlManager.handleTextCommit(text) }
         sessionManager.onKeyDown = { vkCode -> AndroidControlManager.handleKeyDown(vkCode) }
         sessionManager.onKeyUp = { vkCode -> AndroidControlManager.handleKeyUp(vkCode) }
-        sessionManager.onHandoffBegin = { edge, sessionId, clientTxTimestamp -> AndroidControlManager.handleHandoffBegin(edge, sessionId, clientTxTimestamp) }
+        sessionManager.onHandoffBegin = { edge, sessionId, entryNormalized, clientTxTimestamp -> AndroidControlManager.handleHandoffBegin(edge, sessionId, entryNormalized, clientTxTimestamp) }
         sessionManager.onHandoffEnd = { sessionId -> AndroidControlManager.handleHandoffEnd(sessionId) }
         sessionManager.onHandoffCancel = { AndroidControlManager.handleHandoffEnd(-1) }
     }
@@ -228,7 +231,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         AndroidControlManager.onRequestHandoffEnd = {
             val msg = org.json.JSONObject().apply {
                 put("Type", "INPUT_HANDOFF_END")
-                put("ProtocolVersion", 1)
+                put("ProtocolVersion", WebSocketClient.PROTOCOL_VERSION)
                 put("Payload", org.json.JSONObject())
             }.toString()
             webSocketClient.sendMessage(msg)
@@ -236,7 +239,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         AndroidControlManager.onRequestReturnToWindows = { sessionId, edge ->
             val msg = org.json.JSONObject().apply {
                 put("Type", "RETURN_TO_WINDOWS")
-                put("ProtocolVersion", 1)
+                put("ProtocolVersion", WebSocketClient.PROTOCOL_VERSION)
                 put("Payload", org.json.JSONObject().apply {
                     put("SessionId", sessionId)
                     put("Edge", edge)
@@ -314,7 +317,7 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         onOpenDeveloperSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) },
         onStopControl = {
             webSocketClient.sendMessage(org.json.JSONObject().apply {
-                put("Type", "CONTROL_STOP"); put("ProtocolVersion", 1)
+                put("Type", "CONTROL_STOP"); put("ProtocolVersion", WebSocketClient.PROTOCOL_VERSION)
                 put("Payload", org.json.JSONObject())
             }.toString())
             AndroidControlManager.stopRemoteControl()

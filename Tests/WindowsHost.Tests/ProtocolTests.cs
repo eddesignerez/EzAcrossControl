@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using Xunit;
 using WindowsHost.Input;
@@ -15,14 +17,14 @@ namespace WindowsHost.Tests
             var env = new MessageEnvelope
             {
                 Type = "HELLO",
-                ProtocolVersion = 1,
+                ProtocolVersion = 2,
                 Sequence = 123,
                 Payload = new { DeviceName = "Test" }
             };
 
             var json = JsonSerializer.Serialize(env);
             Assert.Contains("\"Type\":\"HELLO\"", json);
-            Assert.Contains("\"ProtocolVersion\":1", json);
+            Assert.Contains("\"ProtocolVersion\":2", json);
             Assert.Contains("\"Sequence\":123", json);
             Assert.Contains("\"Timestamp\":", json);
             Assert.Contains("\"DeviceName\":\"Test\"", json);
@@ -80,6 +82,37 @@ namespace WindowsHost.Tests
             Assert.Equal(2, sentMessages.Count);
             Assert.Contains("\"sequence\":1", sentMessages[0]);
             Assert.Contains("\"sequence\":2", sentMessages[1]);
+        }
+
+        [Fact]
+        public void PairingAuthenticator_VerifiesOnlyTheMatchingChallengeAndIdentity()
+        {
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
+            var installationId = Guid.NewGuid().ToString();
+            var challenge = PairingAuthenticator.CreateChallenge();
+            var signature = Convert.ToBase64String(key.SignData(
+                Encoding.UTF8.GetBytes($"{challenge}|{installationId}"), HashAlgorithmName.SHA256));
+
+            Assert.True(PairingAuthenticator.IsValidInstallationId(installationId));
+            Assert.True(PairingAuthenticator.Verify(publicKey, challenge, installationId, signature));
+            Assert.False(PairingAuthenticator.Verify(publicKey, PairingAuthenticator.CreateChallenge(), installationId, signature));
+            Assert.False(PairingAuthenticator.Verify(publicKey, challenge, Guid.NewGuid().ToString(), signature));
+            Assert.Matches("^[0-9]{6}$", PairingAuthenticator.CreatePairingCode(publicKey));
+        }
+
+        [Fact]
+        public void PairingAuthenticator_VerifiesAndroidDerEncodedSignature()
+        {
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var publicKey = Convert.ToBase64String(key.ExportSubjectPublicKeyInfo());
+            var installationId = Guid.NewGuid().ToString();
+            var challenge = PairingAuthenticator.CreateChallenge();
+            var signature = Convert.ToBase64String(key.SignData(
+                Encoding.UTF8.GetBytes($"{challenge}|{installationId}"), HashAlgorithmName.SHA256,
+                DSASignatureFormat.Rfc3279DerSequence));
+
+            Assert.True(PairingAuthenticator.Verify(publicKey, challenge, installationId, signature));
         }
     }
 }
