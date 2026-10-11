@@ -10,7 +10,7 @@ Contrôlez votre appareil Android avec la souris et le clavier de Windows. Dépl
 
 - [Programme d'installation Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [APK Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [ZIP Windows portable](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [ZIP Windows portable](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Versions et contrôles d'intégrité](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Configuration requise et première connexion

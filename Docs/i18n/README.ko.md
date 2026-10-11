@@ -10,7 +10,7 @@ Windows 마우스와 키보드로 Android 기기를 제어할 수 있습니다. 
 
 - [Windows 설치 프로그램](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [Windows 휴대용 ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [Windows 휴대용 ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [릴리스 및 무결성 확인](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## 요구 사항 및 첫 연결

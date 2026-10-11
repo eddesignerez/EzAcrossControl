@@ -10,7 +10,7 @@ Control your Android device with the Windows mouse and keyboard. Move the pointe
 
 - [Windows installer](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [Android APK](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [Portable Windows ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [Portable Windows ZIP](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Releases and integrity checks](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Requirements and first connection

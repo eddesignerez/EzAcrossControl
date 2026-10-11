@@ -10,7 +10,7 @@
 
 - [Bộ cài Windows](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [APK Android](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [ZIP Windows di động](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [ZIP Windows di động](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Các bản phát hành và kiểm tra tính toàn vẹn](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ## Yêu cầu và kết nối lần đầu

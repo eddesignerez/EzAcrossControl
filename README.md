@@ -26,7 +26,7 @@ Estas imagens são **estudos estáticos da identidade visual**, criados a partir
 
 - [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
 - [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
-- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.4/EZAcrossControl-1.1.4-windows-x64-portable.zip)
+- [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 
 ### Requisitos
