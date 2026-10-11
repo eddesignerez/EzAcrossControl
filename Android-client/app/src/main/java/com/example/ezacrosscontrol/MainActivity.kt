@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var webSocketClient: WebSocketClient
     private val sessionManager = InputSessionManager()
     private var darkSystemBars = false
+    private lateinit var updater: com.example.ezacrosscontrol.updates.AndroidUpdater
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
@@ -47,6 +48,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         webSocketClient = WebSocketClient(applicationContext)
+        updater = com.example.ezacrosscontrol.updates.AndroidUpdater(this)
+        updater.checkAtStartup()
         enableEdgeToEdge()
         val prefsManager = PreferencesManager(this)
 
@@ -75,13 +78,25 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     MainScreen(webSocketClient, prefsManager, sessionManager)
+                    com.example.ezacrosscontrol.updates.UpdateNotice(updater, strings)
                 }
             }
             }
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::updater.isInitialized) updater.resume()
+    }
+
+    override fun onPause() {
+        if (::updater.isInitialized) updater.pause()
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        if (::updater.isInitialized) updater.close()
         super.onDestroy()
         webSocketClient.disconnect()
         ConnectionNotification(applicationContext).clear()

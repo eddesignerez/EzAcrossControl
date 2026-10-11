@@ -8,6 +8,13 @@ for (const line of fs.readFileSync('Localization/messages.tsv','utf8').trim().sp
   columns.forEach((code,i)=>translations[code][row[0]]=row[i]);
 }
 Object.assign(translations.en, {
+ 'Update Offer':'Version {0} is available. Accept to download and start installation. Windows will request permission. ADB will restart and may briefly interrupt other Android connections.',
+ 'Update Android Offer':'Version {0} is available. Accept to download and open the installer automatically. Confirm installation on Android.',
+ 'Update Downloading':'Downloading update: {0}%', 'Update Validating':'Verifying package…',
+ 'Update Failed':'Could not update. Check your internet connection and try again.',
+ 'Update Invalid Package':'Package verification failed. No installation was started.',
+ 'Update Permission Needed':'Allow this app to install updates. Download continues when you return.',
+ 'Update Permission Denied':'Installation was not authorized. Choose Update Now to try again.',
  'CONTROLE ENTRE TELAS':'CONTROL BETWEEN SCREENS','Conectar':'Connect','Conectado':'Connected','Aguardando':'Waiting','Desconectado':'Disconnected','Desconectar':'Disconnect',
  'TOQUE AQUI':'TAP HERE','TOQUE PARA SAIR':'TAP TO DISCONNECT','Endereço do IP':'IP Address','Porta':'Port','Modo Avançado':'Advanced Mode','Depuração':'Debugging','Opções do Desenvolvedor':'Developer Options',
  'Auto: preferência USB; Wi-Fi quando necessário.':'Auto: prefers USB; uses Wi-Fi when needed.','Aguardando Host':'Waiting for Host',

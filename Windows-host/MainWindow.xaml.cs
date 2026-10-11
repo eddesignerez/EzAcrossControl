@@ -75,6 +75,7 @@ namespace WindowsHost
         private DispatcherTimer _inputDebugTimer;
         private DispatcherTimer _transportTimer;
         private bool _closing;
+        private bool _updatePromptOpen;
         private string? _lastUnavailableMode;
         private ConcurrentQueue<InputEvent> _inputEventQueue;
         private List<string> _debugLogLines;
@@ -262,6 +263,7 @@ namespace WindowsHost
                 UpdateEngineBadge();
                 Log("Waiting for Connect in the Android app. Engine starts automatically after HELLO.");
                 BtnStart_Click(this, new RoutedEventArgs());
+                _ = CheckForUpdatesAsync();
             };
 
         }
@@ -271,6 +273,77 @@ namespace WindowsHost
             var productVersion = FileVersionInfo.GetVersionInfo(Environment.ProcessPath ?? string.Empty).ProductVersion;
             var version = productVersion?.Split('+', '-')[0];
             return string.IsNullOrWhiteSpace(version) ? "—" : version;
+        }
+
+        private async Task CheckForUpdatesAsync()
+        {
+            using var updater = new Updates.GitHubUpdater();
+            try
+            {
+                var release = await updater.CheckAsync(GetApplicationVersion());
+                if (release == null || _closing) return;
+                // Do not steal focus while the user is controlling Android.
+                while (_scrcpyEngine.IsCaptured && !_closing) await Task.Delay(1000);
+                if (_closing) return;
+                var dialog = new Updates.UpdateDialog(this, release);
+                using var cancellation = new CancellationTokenSource();
+                bool installing = false;
+                bool downloading = false;
+                dialog.Closed += (_, _) => { if (!installing) cancellation.Cancel(); };
+                dialog.Accepted += async (_, _) =>
+                {
+                    if (downloading) return;
+                    downloading = true;
+                    try
+                    {
+                        dialog.Downloading(0);
+                        string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EZ Across Control", "Updates");
+                        string installer = await updater.DownloadAsync(release, directory, new Progress<int>(dialog.Downloading), cancellation.Token);
+                        // The system's elevation prompt remains authoritative. Cancellation
+                        // leaves the host running; only a launched installer triggers shutdown.
+                        using var setup = Process.Start(new ProcessStartInfo
+                        {
+                            FileName = installer, UseShellExecute = true, Verb = "runas",
+                            Arguments = "/SILENT /NORESTART /CLOSEAPPLICATIONS /EZACUPDATE"
+                        }) ?? throw new InvalidOperationException("Installer did not start");
+                        installing = true;
+                        _controlPaused = true;
+                        _transportTimer.Stop();
+                        try { await _scrcpyEngine.StopAsync(); }
+                        catch (Exception ex) { Logger.LogException(ex, "Update engine shutdown"); }
+                        SafeReleaseInputOwnership("Update installation");
+                        // ADB bundled in the install directory otherwise locks the upgrade.
+                        // This interruption is explicitly disclosed in the update consent.
+                        if (System.IO.File.Exists(Engine.AndroidDeviceManager.AdbPath))
+                        {
+                            using var adb = Process.Start(new ProcessStartInfo
+                            {
+                                FileName = Engine.AndroidDeviceManager.AdbPath, Arguments = "kill-server",
+                                UseShellExecute = false, CreateNoWindow = true
+                            });
+                            if (adb != null) await adb.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        }
+                        dialog.Close();
+                        _exitRequested = true;
+                        Close();
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex, "Update installation");
+                        if (installing)
+                        {
+                            dialog.Close(); _exitRequested = true; Close();
+                        }
+                        else if (dialog.IsVisible) dialog.Failed();
+                    }
+                    finally { downloading = false; }
+                };
+                _updatePromptOpen = true;
+                try { dialog.ShowDialog(); }
+                finally { _updatePromptOpen = false; }
+            }
+            catch (Exception ex) { Logger.Log("UPDATE", "Startup check unavailable: " + ex.GetType().Name); }
         }
 
         private void BtnThemeLight_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Light);
@@ -1482,7 +1555,7 @@ namespace WindowsHost
 
         private bool IsHandoffAvailable()
         {
-            return IsAndroidCompanionConnected() && !_controlPaused && _scrcpyEngine.IsRunning;
+            return IsAndroidCompanionConnected() && !_controlPaused && !_updatePromptOpen && _scrcpyEngine.IsRunning;
         }
 
         private bool ParkNativeInputAtEdge(NativeMethods.POINT entryPointer)

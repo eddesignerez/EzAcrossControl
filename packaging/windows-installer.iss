@@ -1,5 +1,5 @@
 #ifndef Version
-  #define Version "1.1.18"
+  #define Version "1.1.19"
 #endif
 #ifndef Bundle
   #define Bundle "..\.publish-staging\windows"
@@ -48,9 +48,15 @@ Name: "{autodesktop}\EZ Across Control"; Filename: "{app}\EzAcrossControl.exe"; 
 Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked
 [Run]
 Filename: "{app}\EzAcrossControl.exe"; Description: "Open EZ Across Control"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\EzAcrossControl.exe"; Flags: nowait runasoriginaluser; Check: IsAutomaticUpdate
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""EZ Across Control LAN"""; Flags: runhidden; RunOnceId: RemoveLanFirewallRule
 [Code]
+function IsAutomaticUpdate: Boolean;
+begin
+  Result := WizardSilent and (Pos('/EZACUPDATE', Uppercase(GetCmdTail)) > 0);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var ResultCode: Integer; Policy, Rule: Variant; Existing: Boolean;
 begin
