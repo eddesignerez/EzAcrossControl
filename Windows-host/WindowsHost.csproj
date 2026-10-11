@@ -5,9 +5,9 @@
     <AssemblyName>EzAcrossControl</AssemblyName>
     <Product>EZ Across Control</Product>
     <AssemblyTitle>EZ Across Control</AssemblyTitle>
-    <Version>1.1.20</Version>
-    <AssemblyVersion>1.1.20.0</AssemblyVersion>
-    <FileVersion>1.1.20.0</FileVersion>
+    <Version>1.1.21</Version>
+    <AssemblyVersion>1.1.21.0</AssemblyVersion>
+    <FileVersion>1.1.21.0</FileVersion>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

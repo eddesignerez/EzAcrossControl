@@ -22,8 +22,8 @@ android {
         applicationId = "com.example.ezacrosscontrol"
         minSdk = 24
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.1.20"
+        versionCode = 19
+        versionName = "1.1.21"
     }
 
     buildTypes {

@@ -10,8 +10,18 @@ namespace WindowsHost.Engine
 {
     public class AndroidDeviceManager
     {
-        public static string AdbPath => System.IO.File.Exists(System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy", "adb.exe"))
-            ? System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy", "adb.exe") : "adb";
+        public static string AdbPath
+        {
+            get
+            {
+                string directory = System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy");
+                string version = typeof(AndroidDeviceManager).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
+                string versionedPath = System.IO.Path.Combine(directory, $"adb-{version}.exe");
+                if (System.IO.File.Exists(versionedPath)) return versionedPath;
+                string legacyPath = System.IO.Path.Combine(directory, "adb.exe");
+                return System.IO.File.Exists(legacyPath) ? legacyPath : "adb";
+            }
+        }
         public async Task<List<AndroidDevice>> GetDevicesAsync()
         {
             var output = await RunAdbCommandAsync("devices -l");
@@ -206,7 +216,6 @@ namespace WindowsHost.Engine
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-
                 using (var process = new Process { StartInfo = psi })
                 {
                     process.Start();

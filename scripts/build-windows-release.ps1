@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '1.1.20',
+    [string]$Version = '1.1.21',
     [string]$InnoCompiler = $env:INNO_COMPILER,
     [string]$MingwRoot = 'C:\msys64\mingw64',
     [string]$AdbDirectory = 'C:\Android\platform-tools',
@@ -21,7 +21,8 @@ if (-not $NativeClient) { $NativeClient = Join-Path $native 'scrcpy.exe' }
 if (-not $NativeServer) { $NativeServer = Join-Path $native 'scrcpy-server' }
 Copy-Item -LiteralPath $NativeClient -Destination (Join-Path $runtime 'scrcpy.exe')
 Copy-Item -LiteralPath $NativeServer -Destination (Join-Path $runtime 'scrcpy-server')
-foreach ($file in @('adb.exe','AdbWinApi.dll','AdbWinUsbApi.dll')) { Copy-Item -LiteralPath (Join-Path $AdbDirectory $file) -Destination $runtime }
+Copy-Item -LiteralPath (Join-Path $AdbDirectory 'adb.exe') -Destination (Join-Path $runtime "adb-$Version.exe")
+foreach ($file in @('AdbWinApi.dll','AdbWinUsbApi.dll')) { Copy-Item -LiteralPath (Join-Path $AdbDirectory $file) -Destination $runtime }
 $queue = [Collections.Generic.Queue[string]]::new()
 $queue.Enqueue((Join-Path $runtime 'scrcpy.exe'))
 $visited = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)

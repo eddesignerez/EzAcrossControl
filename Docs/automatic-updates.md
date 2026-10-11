@@ -67,3 +67,13 @@ e confirmação do sistema; testes sintéticos não equivalem a instalação rea
 - A 1.1.20 sincroniza o Setup com a saída do Host por PID e encerra o servidor
   ADB imediatamente antes da cópia. Também registra `adb.exe` como recurso no
   mecanismo de fechamento de arquivos em uso do Inno Setup.
+
+## Isolamento do ADB no Windows (1.1.21)
+
+- Manter o ADB compartilhado na porta padrão 5037 e não encerrá-lo ao fechar,
+  atualizar ou desinstalar o EZ Across Control, pois outros aplicativos podem
+  depender das conexões existentes.
+- O executável ADB é empacotado como `scrcpy/adb-{versão}.exe`, evitando
+  substituir o binário ainda em uso durante a atualização. Binários de versões
+  anteriores são preservados no upgrade; clientes continuam usando o servidor
+  compartilhado padrão.

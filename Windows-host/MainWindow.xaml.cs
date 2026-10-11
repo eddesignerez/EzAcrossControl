@@ -312,17 +312,6 @@ namespace WindowsHost
                         try { await _scrcpyEngine.StopAsync(); }
                         catch (Exception ex) { Logger.LogException(ex, "Update engine shutdown"); }
                         SafeReleaseInputOwnership("Update installation");
-                        // ADB bundled in the install directory otherwise locks the upgrade.
-                        // This interruption is explicitly disclosed in the update consent.
-                        if (System.IO.File.Exists(Engine.AndroidDeviceManager.AdbPath))
-                        {
-                            using var adb = Process.Start(new ProcessStartInfo
-                            {
-                                FileName = Engine.AndroidDeviceManager.AdbPath, Arguments = "kill-server",
-                                UseShellExecute = false, CreateNoWindow = true
-                            });
-                            if (adb != null) await adb.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                        }
                         dialog.Close();
                         _exitRequested = true;
                         Close();

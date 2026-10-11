@@ -1,5 +1,5 @@
 #ifndef Version
-  #define Version "1.1.20"
+  #define Version "1.1.21"
 #endif
 #ifndef Bundle
   #define Bundle "..\.publish-staging\windows"
@@ -66,16 +66,8 @@ begin
   Result := WizardSilent and (Pos('/EZACUPDATE', Uppercase(GetCmdTail)) > 0);
 end;
 
-procedure RegisterExtraCloseApplicationsResources;
-var AdbPath: String;
-begin
-  AdbPath := ExpandConstant('{app}\scrcpy\adb.exe');
-  if FileExists(AdbPath) and not RegisterExtraCloseApplicationsResource(False, AdbPath) then
-    Log('Could not register the installed ADB executable with Restart Manager.');
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
-var HostPid, WaitResult, WinError: DWORD; ResultCode: Integer; HostProcess: THandle; AdbPath: String;
+var HostPid, WaitResult, WinError: DWORD; HostProcess: THandle;
 begin
   Result := '';
   HostPid := StrToIntDef(ExpandConstant('{param:EZACPID|0}'), 0);
@@ -107,21 +99,6 @@ begin
     end;
   end;
 
-  { Shut down the installed ADB server before Setup's recursive file copy. }
-  AdbPath := ExpandConstant('{app}\scrcpy\adb.exe');
-  if FileExists(AdbPath) then
-  begin
-    if not Exec(AdbPath, 'kill-server', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    begin
-      Result := 'Could not stop the EZ Across Control ADB server: ' + SysErrorMessage(ResultCode);
-      Exit;
-    end;
-    if ResultCode <> 0 then
-    begin
-      Result := 'The EZ Across Control ADB server did not stop (exit code ' + IntToStr(ResultCode) + '). Close other Android connections and try again.';
-      Exit;
-    end;
-  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -153,6 +130,7 @@ begin
       RegWriteDWordValue(HKLM, 'Software\ElementZero\EZAcrossControl', 'OwnsUrlAcl{#Port}', 1);
   end;
 end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var Owned: Cardinal; ResultCode, I, PortNumber: Integer; Names: TArrayOfString; Name, PortText: String;
 begin
