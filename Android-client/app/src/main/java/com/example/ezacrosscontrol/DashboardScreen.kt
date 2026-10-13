@@ -107,7 +107,7 @@ internal fun DashboardScreen(
                 val controlStatus = when {
                     controlReady -> if (controlTransport == "USB") "Control Ready via USB" else "Control Ready via Wi-Fi"
                     !isConnected && isConnecting -> status.ifBlank { strings["Aguardando Host"] }
-                    !isConnected && status.isNotBlank() -> status
+                    !isConnected && status.isNotBlank() -> strings[status]
                     !isConnected -> readiness.message(connectionMode)
                     hostEngineState == "Starting" -> "Control Engine Starting"
                     hostEngineState == "Error" -> "Control Engine Error; check Windows"

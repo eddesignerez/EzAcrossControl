@@ -18,6 +18,8 @@ namespace WindowsHost.Engine
         private TaskCompletionSource<bool>? _readyTcs;
         private TaskCompletionSource<bool>? _capturedTcs;
         private TaskCompletionSource<bool>? _releasedTcs;
+        private readonly object _captureStateLock = new object();
+        private bool _nativeCaptureConfirmed;
 
         public event EventHandler<ScrcpyEngineState>? StateChanged;
         public event EventHandler<string>? Error;
@@ -211,6 +213,8 @@ namespace WindowsHost.Engine
                     if (line == null) break;
 
                     Debug.WriteLine($"[SCRCPY {prefix}] {line}");
+                    if (line.StartsWith("[EZACROSS CAPTURE]", StringComparison.Ordinal))
+                        Logger.Log("CAPTURE", line);
                 }
             }
             catch { }
@@ -218,16 +222,35 @@ namespace WindowsHost.Engine
 
         private void OnIpcMessageReceived(object? sender, string message)
         {
+            if (!ReferenceEquals(sender, _ipcClient)) return;
             switch (message.Trim())
             {
                 case "READY":
                     _readyTcs?.TrySetResult(true);
                     break;
                 case "CAPTURED":
-                    _capturedTcs?.TrySetResult(true);
+                    lock (_captureStateLock)
+                    {
+                        if (_capturedTcs != null && !_capturedTcs.Task.IsCompleted)
+                        {
+                            _nativeCaptureConfirmed = true;
+                            _capturedTcs.TrySetResult(true);
+                        }
+                    }
                     break;
                 case "RELEASED":
-                    _releasedTcs?.TrySetResult(true);
+                case "CAPTURE_LOST":
+                case "ERROR CAPTURE_FAILED":
+                    lock (_captureStateLock)
+                    {
+                        _nativeCaptureConfirmed = false;
+                        _capturedTcs?.TrySetResult(false);
+                        _releasedTcs?.TrySetResult(true);
+                        ControlOwner = ControlOwner.Windows;
+                        if (State == ScrcpyEngineState.Captured)
+                            State = ScrcpyEngineState.Ready;
+                    }
+                    Logger.Log("CAPTURE", "Native capture released: " + message.Trim());
                     break;
                 default:
                     if (message.StartsWith("ERROR"))
@@ -251,25 +274,44 @@ namespace WindowsHost.Engine
             {
                 if (State != ScrcpyEngineState.Ready || _ipcClient == null) return;
 
-                _capturedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (_captureStateLock)
+                {
+                    _nativeCaptureConfirmed = false;
+                    _capturedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
                 await _ipcClient.SendMessageAsync("CAPTURE_ON");
 
+                bool confirmed = false;
                 try
                 {
-                    await _capturedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    confirmed = await _capturedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
                 }
                 catch (TimeoutException)
                 {
-                    Debug.WriteLine("[IPC] Capture timeout");
-                    return; // Don't crash, just ignore or fire error
+                    Logger.Log("CAPTURE", "Native capture confirmation timed out");
                 }
 
-                Debug.WriteLine("[PM] State=Captured");
-                ControlOwner = ControlOwner.Android;
-                State = ScrcpyEngineState.Captured;
+                lock (_captureStateLock)
+                {
+                    confirmed = confirmed && _nativeCaptureConfirmed;
+                    _capturedTcs = null;
+                    if (confirmed)
+                    {
+                        ControlOwner = ControlOwner.Android;
+                        State = ScrcpyEngineState.Captured;
+                    }
+                }
+                if (!confirmed)
+                {
+                    // Roll back the prepared handoff and any late native capture.
+                    await _ipcClient.SendMessageAsync("CAPTURE_OFF");
+                    if (State == ScrcpyEngineState.Ready)
+                        StateChanged?.Invoke(this, State);
+                }
             }
             finally
             {
+                lock (_captureStateLock) { _capturedTcs = null; }
                 _commandLock.Release();
             }
         }
@@ -386,10 +428,15 @@ namespace WindowsHost.Engine
             }
             finally
             {
-                ControlOwner = ControlOwner.Windows;
-                ActiveTransport = null;
-                ActiveSerial = null;
-                State = finalState;
+                lock (_captureStateLock)
+                {
+                    _nativeCaptureConfirmed = false;
+                    _capturedTcs?.TrySetResult(false);
+                    ControlOwner = ControlOwner.Windows;
+                    ActiveTransport = null;
+                    ActiveSerial = null;
+                    State = finalState;
+                }
             }
         }
 

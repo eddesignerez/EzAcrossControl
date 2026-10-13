@@ -103,7 +103,14 @@ namespace WindowsHost.Engine
         {
             var candidates = devices.Where(d => d.GetSerial(mode) != null).ToList();
             bool nameMatches(AndroidDevice device) => !string.IsNullOrWhiteSpace(companionName)
-                && string.Equals(device.Model, companionName, StringComparison.OrdinalIgnoreCase);
+                && string.Equals(device.Model.Replace('_', ' '), companionName.Replace('_', ' '),
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (mode == ConnectionMode.Auto)
+            {
+                var matchingUsb = candidates.FirstOrDefault(d => d.UsbAvailable && nameMatches(d));
+                if (matchingUsb != null) return matchingUsb;
+            }
 
             if (IPAddress.TryParse(companionAddress, out var address))
             {

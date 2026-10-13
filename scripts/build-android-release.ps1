@@ -1,4 +1,4 @@
-param([string]$JavaHome = $env:JAVA_HOME, [string]$AndroidHome = $env:ANDROID_HOME)
+param([string]$JavaHome = $env:JAVA_HOME, [string]$AndroidHome = $env:ANDROID_HOME, [switch]$Offline)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $private = Join-Path $root '.release-private'
@@ -23,7 +23,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Could not generate Android signing key' }
     }
     Push-Location (Join-Path $root 'Android-client')
-    try { & .\gradlew.bat :app:assembleRelease --console=plain --no-configuration-cache; if ($LASTEXITCODE -ne 0) { throw 'Android release build failed' } }
+    $gradleArguments = @(':app:assembleRelease', '--console=plain', '--no-configuration-cache', '--no-daemon')
+    if ($Offline) { $gradleArguments += '--offline' }
+    try { & .\gradlew.bat @gradleArguments; if ($LASTEXITCODE -ne 0) { throw 'Android release build failed' } }
     finally { Pop-Location }
     $output = Join-Path $root 'release-output'
     New-Item -ItemType Directory -Force $output | Out-Null

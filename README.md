@@ -24,8 +24,8 @@ Estas imagens são **estudos estáticos da identidade visual**, criados a partir
 
 **Windows e Android 1.1.18 — funcionamento confirmado no HiPadPlus.**
 
-- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-setup.exe)
-- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-android.apk)
+- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.26/EZAcrossControl-1.1.26-windows-x64-setup.exe)
+- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.26/EZAcrossControl-1.1.26-android.apk)
 - [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 
@@ -49,7 +49,7 @@ Estas imagens são **estudos estáticos da identidade visual**, criados a partir
 
    Digite o código exibido pelo Android. A porta de pareamento e a porta de conexão são diferentes. Se a descoberta automática não encontrar o aparelho, use `adb connect <IP-do-Android>:<porta-de-conexão>`.
 
-5. No APK, escolha **Modo de Conexão**: **Auto**, **Wi-Fi** ou **USB**. Auto prefere Wi-Fi e usa USB quando disponível.
+5. No APK, escolha **Modo de Conexão**: **Auto**, **Wi-Fi** ou **USB**. Com ambos em Auto, USB tem prioridade e Wi-Fi é usado quando USB está indisponível. Se apenas um lado estiver em modo manual, esse modo é usado. Modos manuais divergentes bloqueiam a conexão; alinhe as escolhas ou selecione Auto. Os seletores preservam suas escolhas e o campo de transporte informa a conexão ativa.
 6. Em **Host PC**, informe o IP exibido no Windows e a mesma porta nos dois aplicativos. A porta padrão é **8765**.
 7. Toque no círculo **Conectar**. O aplicativo informa quando o controle está disponível por Wi-Fi ou USB. Escolha a posição do Android no Windows e mova o ponteiro até essa borda para alternar o controle.
 

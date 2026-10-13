@@ -5,10 +5,23 @@ import org.junit.Test
 
 class ConnectionReadinessTest {
     private val both = ConnectionReadiness(true, true, true, true, true, true)
-    @Test fun autoPrefersWifiAndFallsBackOnlyToConnectedUsb() {
-        assertEquals("Wi-Fi", both.transport("Auto"))
-        assertEquals("USB", both.copy(wifiConnected = false).transport("Auto"))
+    @Test fun autoPrefersUsbAndFallsBackOnlyToConnectedWifi() {
+        assertEquals("USB", both.transport("Auto"))
+        assertEquals("Wi-Fi", both.copy(usbConnected = false).transport("Auto"))
         assertNull(both.copy(wifiConnected = false, usbConnected = false).transport("Auto"))
+    }
+    @Test fun autoReturnsToUsbWhenCableReconnects() {
+        val unplugged = both.copy(usbConnected = false)
+        assertEquals("Wi-Fi", unplugged.transport("Auto"))
+        assertEquals("USB", unplugged.copy(usbConnected = true).transport("Auto"))
+        assertEquals("Pronto para Conectar via USB", both.message("Auto"))
+    }
+    @Test fun autoDoesNotSelectUsbWhenDebuggingIsDisabled() {
+        assertEquals("Wi-Fi", both.copy(usbEnabled = false).transport("Auto"))
+        assertNull(both.copy(usbEnabled = false, wifiEnabled = false).transport("Auto"))
+    }
+    @Test fun unknownModeDoesNotEnableAutomaticFallback() {
+        assertNull(both.transport("invalid"))
     }
     @Test fun enabledDebuggingAloneDoesNotClaimReady() {
         assertNull(both.copy(hostAvailable = false).transport("Auto"))

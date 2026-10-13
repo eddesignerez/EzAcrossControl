@@ -33,6 +33,10 @@ v2 authenticates one approved Android installation. It is not transport encrypti
 
 `ConnectionMode` is `Auto`, `Wi-Fi`, or `USB`; it selects the Host's ADB/scrcpy input transport. The companion WebSocket is always LAN. A rejected pairing closes with policy violation and must not displace the currently authenticated companion.
 
+The Windows preference and Android request remain separate; receiving `HELLO` never changes either selector. If both are `Auto`, prefer the matching authorized USB device, then Wi-Fi when USB is unavailable. If only one is manual, use that manual mode. If both are manual and equal, use that mode without fallback. If both are manual and different, reject the session before activation with WebSocket close code `1008` and reason `Connection modes conflict; choose the same mode or Auto`. The APK stops retrying and permits the user to correct the choice. Changing the Host mode into a conflict during a session releases control and closes that session with the same reason.
+
+Only `SESSION_STATUS.ControlTransport` reports the running transport; it never changes a requested mode. A connected LAN socket alone does not imply that USB or Wi-Fi control is ready.
+
 ```json
 {"Type":"WELCOME","ProtocolVersion":2,"Payload":{}}
 ```

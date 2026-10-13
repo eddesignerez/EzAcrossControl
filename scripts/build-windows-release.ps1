@@ -1,10 +1,11 @@
 param(
-    [string]$Version = '1.1.24',
+    [string]$Version = '1.1.26',
     [string]$InnoCompiler = $env:INNO_COMPILER,
     [string]$MingwRoot = 'C:\msys64\mingw64',
     [string]$AdbDirectory = 'C:\Android\platform-tools',
     [string]$NativeClient,
-    [string]$NativeServer
+    [string]$NativeServer,
+    [switch]$NoRestore
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -12,7 +13,9 @@ $bundle = Join-Path $root ".publish-staging/windows-$Version"
 $output = Join-Path $root 'release-output'
 if (Test-Path $bundle) { throw 'Use an empty Windows staging directory to avoid stale release files.' }
 New-Item -ItemType Directory -Force $bundle,$output | Out-Null
-& dotnet publish (Join-Path $root 'Windows-host/WindowsHost.csproj') -c Release -r win-x64 --self-contained true "-p:Version=$Version" -p:DebugType=None -p:DebugSymbols=false -o $bundle --nologo -v quiet
+$publishArguments = @('publish', (Join-Path $root 'Windows-host/WindowsHost.csproj'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', "-p:Version=$Version", '-p:DebugType=None', '-p:DebugSymbols=false', '-o', $bundle, '--nologo', '-v', 'quiet')
+if ($NoRestore) { $publishArguments += '--no-restore' }
+& dotnet @publishArguments
 if ($LASTEXITCODE -ne 0) { throw 'Windows publish failed' }
 $runtime = Join-Path $bundle 'scrcpy'
 New-Item -ItemType Directory -Force $runtime | Out-Null

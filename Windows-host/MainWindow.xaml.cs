@@ -97,6 +97,8 @@ namespace WindowsHost
         private ScreenEdge _edgeBeforeCapture;
         private string? _companionAddress;
         private string? _companionDeviceName;
+        private ConnectionMode _companionConnectionMode = ConnectionMode.Auto;
+        private bool _connectionModeConflict;
         private AppSettings _appSettings;
         private InputSessionManager _sessionManager;
         private bool _showInputDebug = false;
@@ -617,6 +619,7 @@ namespace WindowsHost
         private bool IsControlReady()
         {
             return IsAndroidCompanionConnected()
+                && IsActiveTransportAllowed()
                 && _androidClientStatusReceived
                 && _androidAccessibilityEnabled
                 && _androidRemoteControlReady
@@ -628,17 +631,20 @@ namespace WindowsHost
         private string GetConnectionStage(bool serverRunning, bool appConnected)
         {
             if (!serverRunning) return "Server Stopped";
+            if (_connectionModeConflict || (appConnected && GetEffectiveConnectionMode() == null))
+                return ConnectionModePolicy.ConflictMessage;
             if (!appConnected) return "Waiting for Android App";
             if (!_androidClientStatusReceived) return "Verifying Android Settings";
             if (!_androidAccessibilityEnabled) return "Android Accessibility Disabled";
             if (_controlPaused || !_androidRemoteControlReady) return "Remote Control Paused on Android";
             if ((_scrcpyEngine.State is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured)
+                && IsActiveTransportAllowed()
                 && (_engineTransport is "USB" or "Wi-Fi"))
                 return _engineTransport == "USB" ? "Control Ready via USB" : "Control Ready via Wi-Fi";
             if (_scrcpyEngine.State == ScrcpyEngineState.Error) return "Control Engine Error; check Windows";
             if (_scrcpyEngine.State == ScrcpyEngineState.Starting) return "Control Engine Starting";
-            if (_engineTransport is not ("USB" or "Wi-Fi"))
-                return _appSettings.ConnectionMode switch
+            if (_engineTransport is not ("USB" or "Wi-Fi") || !IsActiveTransportAllowed())
+                return GetEffectiveConnectionMode() switch
                 {
                     ConnectionMode.Network => "Waiting for Wi-Fi ADB",
                     ConnectionMode.Usb => "Waiting for USB ADB",
@@ -934,26 +940,25 @@ namespace WindowsHost
                 if (type == "HELLO")
                 {
                     int clientVersion = root.TryGetProperty("ProtocolVersion", out var pv) ? pv.GetInt32() : 0;
-                    if (clientVersion != ProtocolVersion || !TryActivateCompanion(socket, remoteAddress, payload))
+                    if (clientVersion != ProtocolVersion)
                     {
-                        _ = CloseRejectedSocketAsync(socket, clientVersion == ProtocolVersion
-                            ? "Pairing was not approved or authentication failed"
-                            : "Protocol v2 required; update both Host and Android companion");
+                        _ = CloseRejectedSocketAsync(socket, "Protocol v2 required; update both Host and Android companion");
+                        return;
+                    }
+                    var requestedMode = payload.TryGetProperty("ConnectionMode", out var modeElement)
+                        ? modeElement.GetString() : "Auto";
+                    if (!ConnectionModePolicy.TryParse(requestedMode, out var companionMode))
+                    {
+                        _ = CloseRejectedSocketAsync(socket, "Invalid connection mode; choose Auto, USB or Wi-Fi");
+                        return;
+                    }
+                    if (!TryActivateCompanion(socket, remoteAddress, payload, companionMode, out var rejection))
+                    {
+                        _ = CloseRejectedSocketAsync(socket, rejection);
                         return;
                     }
 
                     _controlPaused = false;
-                    if (payload.TryGetProperty("ConnectionMode", out var requestedMode))
-                    {
-                        var mode = requestedMode.GetString() switch {
-                            "USB" => ConnectionMode.Usb, "Wi-Fi" => ConnectionMode.Network,
-                            "Auto" => ConnectionMode.Auto, _ => _appSettings.ConnectionMode
-                        };
-                        Dispatcher.Invoke(() => {
-                            _appSettings.ConnectionMode = mode;
-                            CmbConnectionMode.SelectedIndex = (int)mode;
-                        });
-                    }
                     Dispatcher.InvokeAsync(RefreshServerVisuals);
                     _lastPublishedSessionStatus = null;
                     Dispatcher.InvokeAsync(UpdateTransportDisplay);
@@ -1046,8 +1051,16 @@ namespace WindowsHost
             }
         }
 
-        private bool TryActivateCompanion(WebSocket socket, string? remoteAddress, JsonElement payload)
+        private bool TryActivateCompanion(WebSocket socket, string? remoteAddress, JsonElement payload,
+            ConnectionMode companionMode, out string rejection)
         {
+            rejection = "Pairing was not approved or authentication failed";
+            if (Dispatcher.Invoke(() => ConnectionModePolicy.Resolve(_appSettings.ConnectionMode, companionMode)) == null)
+            {
+                rejection = ConnectionModePolicy.ConflictMessage;
+                Dispatcher.Invoke(ShowConnectionModeConflict);
+                return false;
+            }
             if (!_pendingChallenges.TryRemove(socket, out var challenge))
             {
                 Log("[PAIRING] HELLO rejected: no pending challenge for this socket.");
@@ -1103,24 +1116,45 @@ namespace WindowsHost
                     $"Approve this Android companion?\n\nDevice: {deviceName}\nPairing code: {expectedCode}\n\nApprove only if the same code is visible in the Android app.",
                     "EZ Across Control pairing", MessageBoxButton.YesNo, MessageBoxImage.Question));
                 if (approval != MessageBoxResult.Yes) return false;
-                _appSettings.CompanionPairing = new CompanionPairing
-                {
-                    InstallationId = installationId!, DeviceName = deviceName!, PublicKey = publicKey
-                };
-                ConfigManager.Save(_appSettings);
-                Log($"Approved Android pairing for {deviceName} ({installationId}).");
             }
 
-            WebSocket? previous;
-            lock (_socketGate)
+            WebSocket? previous = null;
+            // Recheck and activate on the UI dispatcher: a mode change during pairing
+            // approval must not admit a conflicting session or overwrite a preference.
+            var activated = Dispatcher.Invoke(() =>
             {
-                previous = _currentSocket;
-                _currentSocket = socket;
-                _companionAddress = remoteAddress;
-                _companionDeviceName = deviceName;
-                _androidHandshakeComplete = true;
-                ResetAndroidClientStatus();
-                _sessionQueues[socket] = new SessionQueues();
+                if (ConnectionModePolicy.Resolve(_appSettings.ConnectionMode, companionMode) == null)
+                {
+                    ShowConnectionModeConflict();
+                    return false;
+                }
+                if (!isKnownKey)
+                {
+                    _appSettings.CompanionPairing = new CompanionPairing
+                    {
+                        InstallationId = installationId!, DeviceName = deviceName!, PublicKey = publicKey
+                    };
+                    ConfigManager.Save(_appSettings);
+                    Log($"Approved Android pairing for {deviceName} ({installationId}).");
+                }
+                lock (_socketGate)
+                {
+                    previous = _currentSocket;
+                    _currentSocket = socket;
+                    _companionAddress = remoteAddress;
+                    _companionDeviceName = deviceName;
+                    _companionConnectionMode = companionMode;
+                    _connectionModeConflict = false;
+                    _androidHandshakeComplete = true;
+                    ResetAndroidClientStatus();
+                    _sessionQueues[socket] = new SessionQueues();
+                }
+                return true;
+            });
+            if (!activated)
+            {
+                rejection = ConnectionModePolicy.ConflictMessage;
+                return false;
             }
             _ = NetworkWriterLoop(socket, _sessionQueues[socket], _cts!.Token);
             if (previous != null && !ReferenceEquals(previous, socket))
@@ -1483,6 +1517,38 @@ namespace WindowsHost
 
         private bool _engineStartPending;
 
+        private ConnectionMode? GetEffectiveConnectionMode() =>
+            ConnectionModePolicy.Resolve(_appSettings.ConnectionMode, _companionConnectionMode);
+
+        private bool IsActiveTransportAllowed() => GetEffectiveConnectionMode() switch
+        {
+            ConnectionMode.Auto => true,
+            ConnectionMode.Usb => _engineTransport == "USB",
+            ConnectionMode.Network => _engineTransport == "Wi-Fi",
+            _ => false
+        };
+
+        private void ShowConnectionModeConflict()
+        {
+            if (!IsAndroidCompanionConnected()) _connectionModeConflict = true;
+            Log(Localization.T(ConnectionModePolicy.ConflictMessage));
+            RefreshServerVisuals();
+        }
+
+        private async Task RejectConnectionModeConflictAsync()
+        {
+            var socket = _currentSocket;
+            if (socket == null) return;
+            _androidHandshakeComplete = false;
+            _connectionModeConflict = true;
+            SafeReleaseInputOwnership("Connection modes conflict");
+            StopSessionWriter(socket);
+            ShowConnectionModeConflict();
+            await _scrcpyEngine.StopAsync();
+            await CloseRejectedSocketAsync(socket, ConnectionModePolicy.ConflictMessage);
+            UpdateTransportDisplay();
+        }
+
         private async Task StartEngineAsync()
         {
             if (!IsAndroidCompanionConnected())
@@ -1494,9 +1560,16 @@ namespace WindowsHost
             _engineStartPending = true;
             try
             {
+            var effectiveMode = GetEffectiveConnectionMode();
+            if (effectiveMode == null)
+            {
+                await RejectConnectionModeConflictAsync();
+                return;
+            }
+            var mode = effectiveMode.Value;
+            var socket = _currentSocket;
             if (_deviceManager == null) _deviceManager = new AndroidDeviceManager();
             var devices = await _deviceManager.GetDevicesAsync();
-            var mode = _appSettings.ConnectionMode;
             var usb = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Usb,
                 _companionDeviceName, _companionAddress);
             var network = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Network,
@@ -1509,7 +1582,8 @@ namespace WindowsHost
             }
             var device = AndroidDeviceManager.FindCompanionDevice(devices, mode,
                 _companionDeviceName, _companionAddress);
-            if (_closing || !IsAndroidCompanionConnected()) return;
+            if (_closing || !IsAndroidCompanionConnected() || !ReferenceEquals(socket, _currentSocket)
+                || GetEffectiveConnectionMode() != mode) return;
             _activeDevice = device;
 
             string? selectedSerial = device?.GetSerial(mode);
@@ -1554,6 +1628,12 @@ namespace WindowsHost
             UpdateEngineBadge();
             BtnStartEngine.IsEnabled = false;
             await _scrcpyEngine.StartAsync(mode, device);
+            if (!IsAndroidCompanionConnected() || !ReferenceEquals(socket, _currentSocket)
+                || GetEffectiveConnectionMode() != mode)
+            {
+                await _scrcpyEngine.StopAsync();
+                SafeReleaseInputOwnership("Connection mode changed during engine start");
+            }
             UpdateTransportDisplay();
             Log($"Connection mode: {mode}. Active transport: {_engineTransport}. Engine: {_scrcpyEngine.State}.");
             }
@@ -1591,8 +1671,10 @@ namespace WindowsHost
                 : "-";
             TxtTransport.Text = _engineTransport;
             BtnCaptureAndroid.IsEnabled = IsAndroidCompanionConnected()
+                && IsActiveTransportAllowed()
                 && !_controlPaused && _scrcpyEngine.State == ScrcpyEngineState.Ready;
-            var signature = _engineTransport + ":" + _scrcpyEngine.State + ":" + _controlPaused;
+            var controlEnabled = !_controlPaused && IsActiveTransportAllowed();
+            var signature = _engineTransport + ":" + _scrcpyEngine.State + ":" + controlEnabled;
             if (IsAndroidCompanionConnected() && signature != _lastPublishedSessionStatus)
             {
                 _lastPublishedSessionStatus = signature;
@@ -1604,7 +1686,7 @@ namespace WindowsHost
                     {
                         ControlTransport = _engineTransport == "-" ? null : _engineTransport,
                         EngineState = _scrcpyEngine.State.ToString(),
-                        ControlEnabled = !_controlPaused
+                        ControlEnabled = controlEnabled
                     }
                 }));
             }
@@ -1628,7 +1710,8 @@ namespace WindowsHost
 
         private bool IsHandoffAvailable()
         {
-            return IsAndroidCompanionConnected() && !_controlPaused && !_updatePromptOpen && _scrcpyEngine.IsRunning;
+            return IsAndroidCompanionConnected() && IsActiveTransportAllowed()
+                && !_controlPaused && !_updatePromptOpen && _scrcpyEngine.IsRunning;
         }
 
         private bool ParkNativeInputAtEdge(NativeMethods.POINT entryPointer)
@@ -1780,13 +1863,16 @@ namespace WindowsHost
                 {
                     if (_appSettings.ConnectionMode == mode) return;
                     _appSettings.ConnectionMode = mode;
+                    _connectionModeConflict = false;
                     ConfigManager.Save(_appSettings);
+                    UpdateTransportDisplay();
                     if (_scrcpyEngine != null && IsAndroidCompanionConnected())
                     {
                         CmbConnectionMode.IsEnabled = false;
                         try
                         {
-                            await StartEngineAsync();
+                            if (GetEffectiveConnectionMode() == null) await RejectConnectionModeConflictAsync();
+                            else await StartEngineAsync();
                         }
                         catch (Exception ex) { Log($"Transport switch failed: {ex.Message}"); }
                         finally { CmbConnectionMode.IsEnabled = true; }

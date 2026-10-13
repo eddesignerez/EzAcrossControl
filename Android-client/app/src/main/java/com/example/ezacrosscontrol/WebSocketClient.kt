@@ -14,9 +14,13 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
 
-class WebSocketClient(context: Context) {
+class WebSocketClient(
+    context: Context,
+    private val socketFactory: (OkHttpClient, Request, WebSocketListener) -> WebSocket =
+        { client, request, listener -> client.newWebSocket(request, listener) },
+) {
     private val appContext = context.applicationContext
-    private val pairingIdentity = PairingIdentity(appContext)
+    private val pairingIdentity by lazy { PairingIdentity(appContext) }
     private var wifiLock: WifiManager.WifiLock? = null
     private var client: OkHttpClient? = null
     @Volatile private var webSocket: WebSocket? = null
@@ -33,7 +37,7 @@ class WebSocketClient(context: Context) {
 
     var onConnectionStateChanged: ((Boolean) -> Unit)? = null
     var onConnectionProgressChanged: ((Float) -> Unit)? = null
-    var onConnectionFailure: ((String) -> Unit)? = null
+    var onConnectionFailure: ((String, Boolean) -> Unit)? = null
     var onPairingRequested: ((String) -> Unit)? = null
     var onLatencyUpdated: ((Long) -> Unit)? = null
     var onLogMessage: ((String) -> Unit)? = null
@@ -43,12 +47,12 @@ class WebSocketClient(context: Context) {
         val address = ip.trim()
         val octets = address.split(".")
         if (octets.size != 4 || octets.any { val number = it.toIntOrNull(); number == null || number !in 0..255 }) {
-            onConnectionFailure?.invoke("Endereço do IP inválido")
+            onConnectionFailure?.invoke("Endereço do IP inválido", false)
             return
         }
         val portNumber = port.trim().toIntOrNull()
         if (portNumber == null || portNumber !in 1..65535) {
-            onConnectionFailure?.invoke("Porta inválida")
+            onConnectionFailure?.invoke("Porta inválida", false)
             return
         }
         lastIp = address
@@ -112,7 +116,14 @@ class WebSocketClient(context: Context) {
             }
 
             override fun onClosing(socket: WebSocket, code: Int, reason: String) {
-                if (attemptId == connectionAttemptId) socket.close(1000, null)
+                if (attemptId != connectionAttemptId || webSocket !== socket) return
+                socket.close(code, null)
+                if (code == 1008) {
+                    desiredConnection = false
+                    cancelReconnect()
+                    disconnectInternal(socket)
+                    onConnectionFailure?.invoke(reason.ifBlank { "Pareamento recusado pelo Host" }, false)
+                }
             }
 
             override fun onClosed(socket: WebSocket, code: Int, reason: String) {
@@ -120,7 +131,7 @@ class WebSocketClient(context: Context) {
                 disconnectInternal(socket)
                 if (code == 1008) {
                     desiredConnection = false
-                    onConnectionFailure?.invoke(reason.ifBlank { "Pareamento recusado pelo Host" })
+                    onConnectionFailure?.invoke(reason.ifBlank { "Pareamento recusado pelo Host" }, false)
                 } else scheduleReconnect("Conexão com Host encerrada")
             }
 
@@ -131,7 +142,7 @@ class WebSocketClient(context: Context) {
                 scheduleReconnect("Falha na conexão com Host")
             }
         }
-        val createdSocket = client!!.newWebSocket(Request.Builder().url(url).build(), listener)
+        val createdSocket = socketFactory(client!!, Request.Builder().url(url).build(), listener)
         if (attemptId == connectionAttemptId && webSocket == null) webSocket = createdSocket
         else if (webSocket !== createdSocket) createdSocket.cancel()
     }
@@ -148,20 +159,22 @@ class WebSocketClient(context: Context) {
 
     private fun rejectIncompatible(socket: WebSocket, message: String) {
         desiredConnection = false
+        cancelReconnect()
         socket.close(1008, message)
         disconnectInternal(socket)
-        onConnectionFailure?.invoke(message)
+        onConnectionFailure?.invoke(message, false)
     }
 
     private fun scheduleReconnect(reason: String) {
         if (!desiredConnection) return
         if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-            onConnectionFailure?.invoke("$reason. Reconexão pausada após $MAX_RECONNECT_ATTEMPTS tentativas.")
+            desiredConnection = false
+            onConnectionFailure?.invoke("$reason. Reconexão pausada após $MAX_RECONNECT_ATTEMPTS tentativas.", false)
             return
         }
         reconnectAttempt++
         val delay = min(MAX_RECONNECT_DELAY_MS, BASE_RECONNECT_DELAY_MS shl (reconnectAttempt - 1))
-        onConnectionFailure?.invoke("$reason. Tentando novamente ($reconnectAttempt/$MAX_RECONNECT_ATTEMPTS).")
+        onConnectionFailure?.invoke("$reason. Tentando novamente ($reconnectAttempt/$MAX_RECONNECT_ATTEMPTS).", true)
         onConnectionProgressChanged?.invoke(.2f)
         reconnectRunnable = Runnable { beginConnection() }.also { mainHandler.postDelayed(it, delay) }
     }
@@ -217,8 +230,9 @@ class WebSocketClient(context: Context) {
         } catch (error: Exception) {
             Log.e("EZAcrossSocket", "Unable to create authenticated HELLO", error)
             desiredConnection = false
-            onConnectionFailure?.invoke("Não foi possível preparar o pareamento. Verifique o log do aplicativo.")
             webSocket?.cancel()
+            disconnectInternal()
+            onConnectionFailure?.invoke("Não foi possível preparar o pareamento. Verifique o log do aplicativo.", false)
         }
     }
 

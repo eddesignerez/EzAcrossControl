@@ -13,7 +13,8 @@ data class ConnectionReadiness(
     fun transport(mode: String): String? = when (mode) {
         "USB" -> if (usbReady) "USB" else null
         "Wi-Fi" -> if (wifiReady) "Wi-Fi" else null
-        else -> if (wifiReady) "Wi-Fi" else if (usbReady) "USB" else null
+        "Auto" -> if (usbReady) "USB" else if (wifiReady) "Wi-Fi" else null
+        else -> null
     }
     fun message(mode: String): String {
         if (developerEnabled == false) return "Ative as Opções do Desenvolvedor"

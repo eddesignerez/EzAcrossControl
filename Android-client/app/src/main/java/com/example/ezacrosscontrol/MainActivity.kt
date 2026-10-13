@@ -211,9 +211,9 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
                 connectionProgress = progress
             }
         }
-        webSocketClient.onConnectionFailure = { message ->
+        webSocketClient.onConnectionFailure = { message, retrying ->
             coroutineScope.launch {
-                isConnecting = !(message.contains("pausada") || message.contains("incompatível") || message.contains("recusado"))
+                isConnecting = retrying
                 status = message
             }
         }

@@ -96,4 +96,41 @@ public class AndroidDeviceManagerTests
             "Tablet", "192.0.2.13");
         Assert.Equal("tablet-usb", tablet?.GetSerial(ConnectionMode.Auto));
     }
+
+    [Fact]
+    public void AutoPrefersMatchingUsbEvenWhenWifiIsInASeparateModelRecord()
+    {
+        var devices = AndroidDeviceManager.ParseDevices("tablet-usb device model:Tablet_Pro\n192.0.2.13:40000 device model:Tablet\n");
+        var selected = AndroidDeviceManager.FindCompanionDevice(devices, ConnectionMode.Auto,
+            "Tablet Pro", "192.0.2.13");
+        Assert.Equal("tablet-usb", selected?.GetSerial(ConnectionMode.Auto));
+        Assert.Equal("192.0.2.13:40000", AndroidDeviceManager.FindCompanionDevice(devices,
+            ConnectionMode.Network, "Tablet Pro", "192.0.2.13")?.GetSerial(ConnectionMode.Network));
+    }
+
+    [Fact]
+    public void AutoFallsBackAndReturnsToUsbOfTheCompanionWithoutSelectingAnotherPhone()
+    {
+        const string wifiAndOtherPhone = "phone-usb device model:Phone\n192.0.2.13:40000 device model:Tablet_Pro\n";
+        foreach (var (usbState, expected) in new[] {
+            ("device", "tablet-usb"), ("offline", "192.0.2.13:40000"),
+            ("unauthorized", "192.0.2.13:40000"), ("device", "tablet-usb") })
+        {
+            var devices = AndroidDeviceManager.ParseDevices($"tablet-usb {usbState} model:Tablet_Pro\n" + wifiAndOtherPhone);
+            var effective = ConnectionModePolicy.Resolve(ConnectionMode.Auto, ConnectionMode.Auto)!.Value;
+            Assert.Equal(expected, AndroidDeviceManager.FindCompanionDevice(devices, effective,
+                "Tablet Pro", "192.0.2.13")?.GetSerial(effective));
+        }
+    }
+
+    [Theory]
+    [InlineData(ConnectionMode.Auto, ConnectionMode.Usb)]
+    [InlineData(ConnectionMode.Usb, ConnectionMode.Auto)]
+    public void NegotiatedManualUsbDoesNotFallBackToWifiWhenCableIsUnavailable(
+        ConnectionMode host, ConnectionMode companion)
+    {
+        var devices = AndroidDeviceManager.ParseDevices("tablet-usb offline model:Tablet\n192.0.2.13:40000 device model:Tablet\n");
+        var effective = ConnectionModePolicy.Resolve(host, companion)!.Value;
+        Assert.Null(AndroidDeviceManager.FindCompanionDevice(devices, effective, "Tablet", "192.0.2.13"));
+    }
 }

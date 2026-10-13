@@ -1,5 +1,5 @@
 #ifndef Version
-  #define Version "1.1.24"
+  #define Version "1.1.26"
 #endif
 #ifndef Bundle
   #define Bundle "..\.publish-staging\windows"
@@ -14,6 +14,10 @@
 AppId={{BEDB5ECD-E011-496D-9D70-2167B51103EF}
 AppName=EZ Across Control
 AppVersion={#Version}
+VersionInfoVersion={#Version}
+VersionInfoTextVersion={#Version}.0
+VersionInfoProductVersion={#Version}
+VersionInfoProductTextVersion={#Version}
 AppPublisher=ElementZero
 AppPublisherURL=https://github.com/eddesignerez/EzAcrossControl
 DefaultDirName={autopf}\EZ Across Control
