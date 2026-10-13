@@ -28,4 +28,28 @@ class ConnectionReadinessTest {
         assertEquals("Ative a Depuração USB", both.copy(usbEnabled = false).message("USB"))
         assertEquals("Ative a Depuração Wi-Fi", both.copy(wifiEnabled = false).message("Wi-Fi"))
     }
+
+    @Test fun controlReadyRequiresEveryLayerToBeReady() {
+        fun ready(
+            appConnected: Boolean = true,
+            transport: String? = "USB",
+            engineState: String? = "Ready",
+            hostControlEnabled: Boolean = true,
+            accessibilityEnabled: Boolean = true,
+            manuallyStopped: Boolean = false,
+            readiness: ConnectionReadiness = both,
+        ) = isControlReady(appConnected, transport, engineState, hostControlEnabled,
+            accessibilityEnabled, manuallyStopped, readiness)
+
+        assertTrue(ready())
+        assertTrue(ready(engineState = "Captured"))
+        assertFalse(ready(appConnected = false))
+        assertFalse(ready(transport = null))
+        assertFalse(ready(engineState = "Starting"))
+        assertFalse(ready(engineState = "Error"))
+        assertFalse(ready(hostControlEnabled = false))
+        assertFalse(ready(accessibilityEnabled = false))
+        assertFalse(ready(manuallyStopped = true))
+        assertFalse(ready(readiness = both.copy(usbConnected = false)))
+    }
 }

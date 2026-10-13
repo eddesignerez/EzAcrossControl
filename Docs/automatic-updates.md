@@ -16,10 +16,10 @@ sendo parte da cadeia de confiança.
 
 Depois do download validado, inicia o Inno Setup. O Windows solicita elevação;
 cancelar essa autorização deixa o aplicativo aberto. Após iniciar o instalador,
-o Host encerra o motor, para o ADB e fecha. O Setup aguarda esse encerramento e
-para novamente o ADB imediatamente antes de substituir os arquivos, evitando a
-disputa pelo `adb.exe` observada ao instalar a 1.1.19.
-O aviso de aceite informa que outras conexões Android podem ser interrompidas.
+o Host encerra o motor e fecha. O Setup aguarda esse encerramento antes de
+substituir os arquivos. O servidor ADB compartilhado não é encerrado: o ADB
+empacotado usa nome versionado (`adb-{versão}.exe`), evitando substituir um
+executável em uso e preservando conexões de outros aplicativos.
 O instalador preserva as configurações existentes e reabre o aplicativo ao concluir
 uma atualização iniciada com `/EZACUPDATE`. Não aceita scripts ou comandos da release.
 

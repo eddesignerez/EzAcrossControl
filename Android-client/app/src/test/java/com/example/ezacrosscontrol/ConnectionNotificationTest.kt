@@ -21,30 +21,37 @@ class ConnectionNotificationTest {
     @Test fun disconnectRemovesConnectionIndicator() {
         val indicator = ConnectionNotification(context)
         val strings = AppStrings(context, "pt-BR")
-        indicator.update(false, null, strings)
+        indicator.update(false, false, null, strings)
         assertTrue(manager.activeNotifications.isEmpty())
-        indicator.update(true, "Wi-Fi", strings)
+        indicator.update(true, true, "Wi-Fi", strings)
         val notification = manager.activeNotifications.single().notification
         assertEquals("Conectado · Wi-Fi", notification.extras.getCharSequence(Notification.EXTRA_TEXT))
         assertEquals(R.drawable.ic_connection_status, notification.smallIcon.resId)
         assertTrue(notification.flags and Notification.FLAG_ONGOING_EVENT != 0)
         assertNull(manager.getNotificationChannel(ConnectionNotification.CHANNEL_ID).sound)
         assertNotNull(notification.contentIntent)
-        indicator.update(false, null, strings)
+        indicator.update(false, false, null, strings)
         assertTrue(manager.activeNotifications.isEmpty())
     }
 
     @Test fun transportAndLanguageUpdateTheExistingIndicator() {
         val indicator = ConnectionNotification(context)
-        indicator.update(true, "Wi-Fi", AppStrings(context, "pt-BR"))
-        indicator.update(true, "USB", AppStrings(context, "en"))
+        indicator.update(true, true, "Wi-Fi", AppStrings(context, "pt-BR"))
+        indicator.update(true, true, "USB", AppStrings(context, "en"))
         assertEquals("Connected · USB", manager.activeNotifications.single().notification.extras.getCharSequence(Notification.EXTRA_TEXT))
+        indicator.clear()
+    }
+
+    @Test fun authenticatedAppDoesNotAdvertiseReadyControl() {
+        val indicator = ConnectionNotification(context)
+        indicator.update(true, false, "Wi-Fi", AppStrings(context, "pt-BR"))
+        assertEquals("Aguardando o controle remoto", manager.activeNotifications.single().notification.extras.getCharSequence(Notification.EXTRA_TEXT))
         indicator.clear()
     }
 
     @Test @Config(sdk = [33]) fun deniedNotificationPermissionDoesNotBreakConnection() {
         shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        ConnectionNotification(context).update(true, "USB", AppStrings(context, "pt-BR"))
+        ConnectionNotification(context).update(true, true, "USB", AppStrings(context, "pt-BR"))
         assertTrue(manager.activeNotifications.isEmpty())
     }
 }

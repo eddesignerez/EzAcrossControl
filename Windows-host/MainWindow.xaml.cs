@@ -83,6 +83,12 @@ namespace WindowsHost
         private IEdgeTransitionService _edgeTransitionService;
         private IEdgeHandoffService _edgeHandoffService;
         private bool _androidHandshakeComplete;
+        private bool _androidClientStatusReceived;
+        private bool _androidAdbReady;
+        private bool _androidAccessibilityEnabled;
+        private bool _androidRemoteControlReady;
+        private bool _androidKeyboardEnabled;
+        private bool _androidKeyboardSelected;
         private AndroidDevice? _activeDevice;
         private string _engineTransport = "-";
         private string? _lastPublishedSessionStatus;
@@ -207,6 +213,7 @@ namespace WindowsHost
                 }
                 UpdateEngineBadge();
                 UpdateTransportDisplay();
+                RefreshServerVisuals();
             });
 
             _scrcpyEngine.Error += (s, msg) => Dispatcher.InvokeAsync(() => {
@@ -380,9 +387,15 @@ namespace WindowsHost
 
         private void UpdateEngineBadge()
         {
-            TxtEngineState.Foreground = (Brush)FindResource(
-                _scrcpyEngine?.State == ScrcpyEngineState.Ready
-                    ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+            var state = _scrcpyEngine?.State ?? ScrcpyEngineState.Offline;
+            var ready = state is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured;
+            var starting = state == ScrcpyEngineState.Starting;
+            TxtEngineState.Foreground = (Brush)FindResource(ready ? "SuccessPrimaryBrush"
+                : starting ? "InfoPrimaryBrush"
+                : state == ScrcpyEngineState.Error ? "ErrorPrimaryBrush" : "TextSecondaryBrush");
+            EngineStateBadge.Background = (Brush)FindResource(ready ? "SuccessBackgroundBrush"
+                : starting ? "InfoBackgroundBrush"
+                : state == ScrcpyEngineState.Error ? "BrandCoralSoftBrush" : "SurfaceSoftBrush");
         }
 
         private double MeasureLabel(string source, double size, FontWeight weight)
@@ -395,10 +408,10 @@ namespace WindowsHost
 
         private void ApplyLanguageLayout()
         {
-            var labels = new[] { "Android Position", "Connection Mode", "Transport / Control", "Sensitivity",
+            var labels = new[] { "Android Position", "Connection Mode", "Transport / Control", "Android Control", "Sensitivity",
                 "Activation Delay", "Edge Status", "Device", "Local IP", "Port" };
             var labelWidth = Math.Max(155, labels.Max(x => MeasureLabel(x, 12, FontWeights.Normal)) + 18);
-            labelWidth = Math.Max(labelWidth, new[] { "Running", "Stopped", "Error" }
+            labelWidth = Math.Max(labelWidth, new[] { "Server Running", "Server Stopped", "Error" }
                 .Max(x => MeasureLabel(x, 22, FontWeights.Bold)) + 14);
             System.Windows.Application.Current.Resources["FieldLabelWidth"] = new GridLength(labelWidth);
             BtnStart.Width = new[] { "Start Server", "Started" }.Max(x => MeasureLabel(x, FontSize, FontWeights.SemiBold)) + 30;
@@ -575,20 +588,67 @@ namespace WindowsHost
         private void RefreshServerVisuals()
         {
             bool running = _listener?.IsListening == true && !_startingServer;
-            bool connected = running && IsAndroidCompanionConnected();
-            UpdateTrayConnectionIcon(connected);
-            var state = running ? (connected ? "Connected" : "Server Waiting") : "Off";
+            bool appConnected = running && IsAndroidCompanionConnected();
+            bool controlReady = running && IsControlReady();
+            UpdateTrayConnectionIcon(controlReady);
+            var state = GetConnectionStage(running, appConnected);
             BtnStart.SetResourceReference(System.Windows.Controls.ContentControl.ContentProperty, running ? "Ui.Started" : "Ui.Start Server");
             BtnStart.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
-            Localization.SetStatus(TxtServerStatus, running ? "Running" : "Stopped");
+            Localization.SetStatus(TxtServerStatus, running ? "Server Running" : "Server Stopped");
             TxtServerStatus.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Localization.SetStatus(TxtLocalServerState, state);
             TxtLocalServerState.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
-                !running ? "ErrorPrimaryBrush" : connected ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
+                controlReady ? "SuccessPrimaryBrush" : !running ? "ErrorPrimaryBrush" : "WarningPrimaryBrush");
+            Localization.SetStatus(TxtAndroidAccessibility, !_androidClientStatusReceived ? "Waiting" : _androidAccessibilityEnabled ? "Yes" : "No");
+            Localization.SetStatus(TxtAndroidKeyboardEnabled, !_androidClientStatusReceived ? "Waiting" : _androidKeyboardEnabled ? "Yes" : "No");
+            Localization.SetStatus(TxtAndroidKeyboardSelected, !_androidClientStatusReceived ? "Waiting" : _androidKeyboardSelected ? "Yes" : "No");
+            TxtAndroidAccessibility.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                !_androidClientStatusReceived ? "WarningPrimaryBrush" : _androidAccessibilityEnabled ? "SuccessPrimaryBrush" : "ErrorPrimaryBrush");
+            TxtAndroidKeyboardEnabled.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                !_androidClientStatusReceived ? "WarningPrimaryBrush" : _androidKeyboardEnabled ? "SuccessPrimaryBrush" : "ErrorPrimaryBrush");
+            TxtAndroidKeyboardSelected.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                !_androidClientStatusReceived ? "WarningPrimaryBrush" : _androidKeyboardSelected ? "SuccessPrimaryBrush" : "ErrorPrimaryBrush");
             BtnStart.IsEnabled = !running && !_startingServer;
             BtnStop.IsEnabled = running;
             TxtPort.IsEnabled = !_startingServer;
             BtnApplyPort.IsEnabled = !_startingServer;
+        }
+
+        private bool IsControlReady()
+        {
+            return IsAndroidCompanionConnected()
+                && _androidClientStatusReceived
+                && _androidAdbReady
+                && _androidAccessibilityEnabled
+                && _androidRemoteControlReady
+                && !_controlPaused
+                && (_scrcpyEngine.State is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured)
+                && (_engineTransport is "USB" or "Wi-Fi");
+        }
+
+        private string GetConnectionStage(bool serverRunning, bool appConnected)
+        {
+            if (!serverRunning) return "Server Stopped";
+            if (!appConnected) return "Waiting for Android App";
+            if (_scrcpyEngine.State == ScrcpyEngineState.Error) return "Control Engine Error; check Windows";
+            if (_scrcpyEngine.State == ScrcpyEngineState.Starting) return "Control Engine Starting";
+            if (_engineTransport is not ("USB" or "Wi-Fi"))
+                return _appSettings.ConnectionMode switch
+                {
+                    ConnectionMode.Network => "Waiting for Wi-Fi ADB",
+                    ConnectionMode.Usb => "Waiting for USB ADB",
+                    _ => "Waiting for ADB Device"
+                };
+            if (!_androidClientStatusReceived) return "Verifying Android Settings";
+            if (!_androidAdbReady)
+                return _engineTransport == "Wi-Fi"
+                    ? "Wi-Fi ADB is no longer ready; check paired debugging"
+                    : "USB ADB is no longer ready; check USB debugging";
+            if (!_androidAccessibilityEnabled) return "Android Accessibility Disabled";
+            if (_controlPaused || !_androidRemoteControlReady) return "Remote Control Paused on Android";
+            if (_scrcpyEngine.State is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured)
+                return _engineTransport == "USB" ? "Control Ready via USB" : "Control Ready via Wi-Fi";
+            return "Waiting for all control requirements";
         }
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
@@ -820,6 +880,7 @@ namespace WindowsHost
                     StopSessionWriter(socket);
                     _currentSocket = null;
                     _androidHandshakeComplete = false;
+                    ResetAndroidClientStatus();
 
                     if (_scrcpyEngine.IsCaptured)
                     {
@@ -924,6 +985,16 @@ namespace WindowsHost
                         Payload = payload
                     };
                     SendMessage(socket, JsonSerializer.Serialize(pongEnv));
+                }
+                else if (type == "CLIENT_STATUS")
+                {
+                    _androidClientStatusReceived = true;
+                    _androidAdbReady = payload.TryGetProperty("AdbReady", out var adbReady) && adbReady.ValueKind == JsonValueKind.True;
+                    _androidAccessibilityEnabled = payload.TryGetProperty("AccessibilityEnabled", out var accessibility) && accessibility.ValueKind == JsonValueKind.True;
+                    _androidRemoteControlReady = payload.TryGetProperty("RemoteControlReady", out var remoteControl) && remoteControl.ValueKind == JsonValueKind.True;
+                    _androidKeyboardEnabled = payload.TryGetProperty("KeyboardEnabled", out var keyboardEnabled) && keyboardEnabled.ValueKind == JsonValueKind.True;
+                    _androidKeyboardSelected = payload.TryGetProperty("KeyboardSelected", out var keyboardSelected) && keyboardSelected.ValueKind == JsonValueKind.True;
+                    Dispatcher.InvokeAsync(() => RefreshServerVisuals());
                 }
                 else if (type == "RETURN_TO_WINDOWS")
                 {
@@ -1048,6 +1119,7 @@ namespace WindowsHost
                 _companionAddress = remoteAddress;
                 _companionDeviceName = deviceName;
                 _androidHandshakeComplete = true;
+                ResetAndroidClientStatus();
                 _sessionQueues[socket] = new SessionQueues();
             }
             _ = NetworkWriterLoop(socket, _sessionQueues[socket], _cts!.Token);
@@ -1210,6 +1282,7 @@ namespace WindowsHost
                 _listener = null;
                 
                 _androidHandshakeComplete = false;
+                ResetAndroidClientStatus();
                 SafeReleaseInputOwnership("Server stopped");
                 if (_currentSocket != null) StopSessionWriter(_currentSocket);
                 _currentSocket?.Abort();
@@ -1535,6 +1608,17 @@ namespace WindowsHost
                     }
                 }));
             }
+            RefreshServerVisuals();
+        }
+
+        private void ResetAndroidClientStatus()
+        {
+            _androidClientStatusReceived = false;
+            _androidAdbReady = false;
+            _androidAccessibilityEnabled = false;
+            _androidRemoteControlReady = false;
+            _androidKeyboardEnabled = false;
+            _androidKeyboardSelected = false;
         }
 
         private bool UsesNativeScrcpyInput()

@@ -198,7 +198,7 @@
                             <TextBlock Grid.ColumnSpan="2" Text="{DynamicResource Ui.Connection Status}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
                             <TextBlock x:Name="TxtServerStatus" Grid.Row="1" Text="{DynamicResource Ui.Stopped}" FontSize="22" TextWrapping="Wrap" FontWeight="Bold" VerticalAlignment="Center"/>
                             <WrapPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,10,0,0">
-                                <TextBlock Text="{DynamicResource Ui.Local Server}" Style="{StaticResource LabelStyle}" Margin="0,0,4,0"/>
+                                <TextBlock Text="{DynamicResource Ui.Android Control}" Style="{StaticResource LabelStyle}" Margin="0,0,4,0"/>
                                 <TextBlock x:Name="TxtLocalServerState" Text="{DynamicResource Ui.Off}" Style="{StaticResource LabelStyle}"/>
                             </WrapPanel>
                             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
@@ -287,7 +287,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,9"/>
-                            <Border Background="{DynamicResource SuccessBackgroundBrush}" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                            <Border x:Name="EngineStateBadge" Background="{DynamicResource SurfaceSoftBrush}" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
                                 <TextBlock x:Name="TxtEngineState" Text="{DynamicResource Ui.Offline}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold"/>
                             </Border>
                             <TextBlock x:Name="TxtEngineStatus" Text="{DynamicResource Ui.Offline}" Visibility="Collapsed"/>
@@ -327,6 +327,18 @@
                         <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{DynamicResource Ui.Transport}" Style="{StaticResource LabelStyle}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtTransport}" Style="{StaticResource ValueStyle}"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{DynamicResource Ui.Accessibility}" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock x:Name="TxtAndroidAccessibility" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{DynamicResource Ui.Remote Keyboard Enabled}" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock x:Name="TxtAndroidKeyboardEnabled" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,13"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="{DynamicResource Ui.Remote Keyboard Selected}" Style="{StaticResource LabelStyle}"/>
+                            <TextBlock x:Name="TxtAndroidKeyboardSelected" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
                         </Grid>
                         <Grid Margin="0,0,0,13"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <TextBlock Text="{DynamicResource Ui.Edge Status}" Style="{StaticResource LabelStyle}"/>

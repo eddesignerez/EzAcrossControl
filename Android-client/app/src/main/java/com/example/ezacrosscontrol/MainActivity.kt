@@ -125,6 +125,8 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     var isConnecting by remember { mutableStateOf(false) }
     var connectionProgress by remember { mutableStateOf(0f) }
     var controlTransport by remember { mutableStateOf<String?>(null) }
+    var hostEngineState by remember { mutableStateOf("Offline") }
+    var hostControlEnabled by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var accessibilityEnabled by remember { mutableStateOf(AndroidControlManager.isAccessibilityEnabled) }
     var controlState by remember { mutableStateOf(AndroidControlManager.currentState) }
@@ -133,6 +135,15 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     val connectionMode by prefsManager.connectionModeFlow.collectAsState(initial = "Auto")
     var keyboardEnabled by remember { mutableStateOf(false) }
     var keyboardSelected by remember { mutableStateOf(false) }
+    val controlReady = isControlReady(
+        appConnected = isConnected,
+        transport = controlTransport,
+        engineState = hostEngineState,
+        hostControlEnabled = hostControlEnabled,
+        accessibilityEnabled = accessibilityEnabled && (controlState == ControlState.Ready || controlState == ControlState.Controlling),
+        manuallyStopped = controlStopped,
+        readiness = readiness,
+    )
     val probe = remember { HostReadinessProbe() }
     var latency by remember { mutableStateOf<Long?>(null) }
     var logText by remember { mutableStateOf("") }
@@ -142,8 +153,8 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
     var currentHz by remember { mutableStateOf(sessionManager.currentHz) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(isConnected, controlTransport, strings, notificationPermissionGranted) {
-        connectionNotification.update(isConnected, controlTransport, strings)
+    LaunchedEffect(isConnected, controlReady, controlTransport, strings, notificationPermissionGranted) {
+        connectionNotification.update(isConnected, controlReady, controlTransport, strings)
     }
     DisposableEffect(Unit) {
         onDispose { connectionNotification.clear() }
@@ -184,6 +195,8 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
             AndroidControlManager.onConnectionStateChanged(connected)
             if (!connected) {
                 controlTransport = null
+                hostEngineState = "Offline"
+                hostControlEnabled = false
                 sessionManager.reset()
                 lastEvent = sessionManager.lastEvent
                 lastSequence = sessionManager.lastSequence
@@ -222,6 +235,8 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
                         if (transport == null && controlTransport != null) status = "Controle desconectado. Verifique a depuração."
                         if (transport != null) status = ""
                         controlTransport = transport
+                        hostEngineState = env.payload.optString("EngineState", "Offline")
+                        hostControlEnabled = env.payload.optBoolean("ControlEnabled", false)
                     }
                 }
             }
@@ -237,6 +252,21 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         sessionManager.onHandoffBegin = { edge, sessionId, entryNormalized, clientTxTimestamp -> AndroidControlManager.handleHandoffBegin(edge, sessionId, entryNormalized, clientTxTimestamp) }
         sessionManager.onHandoffEnd = { sessionId -> AndroidControlManager.handleHandoffEnd(sessionId) }
         sessionManager.onHandoffCancel = { AndroidControlManager.handleHandoffEnd(-1) }
+    }
+
+    LaunchedEffect(isConnected, controlTransport, readiness, accessibilityEnabled, controlState, controlStopped, keyboardEnabled, keyboardSelected) {
+        if (isConnected) {
+            val selectedTransport = controlTransport
+            webSocketClient.sendClientStatus(
+                adbReady = selectedTransport != null && readiness.transport(selectedTransport) != null,
+                accessibilityEnabled = accessibilityEnabled,
+                remoteControlReady = accessibilityEnabled
+                    && (controlState == ControlState.Ready || controlState == ControlState.Controlling)
+                    && !controlStopped,
+                keyboardEnabled = keyboardEnabled,
+                keyboardSelected = keyboardSelected,
+            )
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -299,8 +329,11 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         onLanguageChange = { value -> coroutineScope.launch { prefsManager.setLanguage(value) } },
         isConnected = isConnected,
         isConnecting = isConnecting,
+        controlReady = controlReady,
         connectionProgress = connectionProgress,
         controlTransport = controlTransport,
+        hostEngineState = hostEngineState,
+        hostControlEnabled = hostControlEnabled,
         status = status,
         latency = latency,
         controlState = controlState,
@@ -334,14 +367,6 @@ fun MainScreen(webSocketClient: WebSocketClient, prefsManager: PreferencesManage
         onDisconnect = { webSocketClient.disconnect() },
         onOpenAccessibility = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
         onOpenDeveloperSettings = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) },
-        onStopControl = {
-            webSocketClient.sendMessage(org.json.JSONObject().apply {
-                put("Type", "CONTROL_STOP"); put("ProtocolVersion", WebSocketClient.PROTOCOL_VERSION)
-                put("Payload", org.json.JSONObject())
-            }.toString())
-            AndroidControlManager.stopRemoteControl()
-            webSocketClient.disconnect()
-        },
         onEnableIme = { context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) },
         onSelectIme = {
             val inputMethodManager = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager

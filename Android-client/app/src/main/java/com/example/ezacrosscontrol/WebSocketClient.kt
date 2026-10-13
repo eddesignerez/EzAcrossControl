@@ -227,6 +227,23 @@ class WebSocketClient(context: Context) {
         put("Payload", JSONObject().put("Timestamp", System.currentTimeMillis()))
     }.toString())
 
+    fun sendClientStatus(
+        adbReady: Boolean,
+        accessibilityEnabled: Boolean,
+        remoteControlReady: Boolean,
+        keyboardEnabled: Boolean,
+        keyboardSelected: Boolean,
+    ) = send(JSONObject().apply {
+        put("Type", "CLIENT_STATUS"); put("ProtocolVersion", PROTOCOL_VERSION)
+        put("Payload", JSONObject().apply {
+            put("AdbReady", adbReady)
+            put("AccessibilityEnabled", accessibilityEnabled)
+            put("RemoteControlReady", remoteControlReady)
+            put("KeyboardEnabled", keyboardEnabled)
+            put("KeyboardSelected", keyboardSelected)
+        })
+    }.toString())
+
     fun sendMessage(message: String) = send(message)
     private fun send(message: String) { webSocket?.send(message) }
 

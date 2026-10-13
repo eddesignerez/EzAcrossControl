@@ -50,8 +50,9 @@ import kotlin.math.sin
 internal fun DashboardScreen(
     ip: String, port: String, theme: AppTheme,
     language: String, onLanguageChange: (String) -> Unit,
-    isConnected: Boolean, isConnecting: Boolean, connectionProgress: Float,
-    controlTransport: String?, status: String, latency: Long?,
+    isConnected: Boolean, isConnecting: Boolean, controlReady: Boolean, connectionProgress: Float,
+    controlTransport: String?, hostEngineState: String, hostControlEnabled: Boolean,
+    status: String, latency: Long?,
     controlState: ControlState, accessibilityEnabled: Boolean, controlStopped: Boolean,
     readiness: ConnectionReadiness, connectionMode: String,
     keyboardEnabled: Boolean, keyboardSelected: Boolean,
@@ -60,7 +61,7 @@ internal fun DashboardScreen(
     onIpChange: (String) -> Unit, onPortChange: (String) -> Unit,
     onThemeChange: (AppTheme) -> Unit, onConnect: () -> Unit, onDisconnect: () -> Unit,
     onOpenAccessibility: () -> Unit, onOpenDeveloperSettings: () -> Unit,
-    onStopControl: () -> Unit, onEnableIme: () -> Unit, onSelectIme: () -> Unit,
+    onEnableIme: () -> Unit, onSelectIme: () -> Unit,
 ) {
     val strings = LocalStrings.current
     var advancedOpen by remember { mutableStateOf(false) }
@@ -99,22 +100,33 @@ internal fun DashboardScreen(
                     ThemeToggle(theme, onThemeChange, Modifier.align(Alignment.CenterEnd))
                 }
                 Spacer(Modifier.height(20.dp))
-                val controlReady = isConnected && controlTransport != null && !controlStopped
-                    && readiness.transport(controlTransport) != null
                 val awaitingControl = isConnecting || (isConnected && !controlReady)
-                ConnectionCircle(controlReady, awaitingControl, if (isConnected && !controlReady) .65f else connectionProgress, diameter = if (tablet) 280.dp else 224.dp,
+                ConnectionCircle(controlReady, isConnected, awaitingControl, if (isConnected && !controlReady) .65f else connectionProgress, diameter = if (tablet) 280.dp else 224.dp,
                     onToggle = { if (isConnected || isConnecting) onDisconnect() else onConnect() })
                 Spacer(Modifier.height(18.dp))
-                Text(strings[when {
-                    isConnected && status.isNotBlank() -> status
-                    isConnected && !controlReady -> "Controle Indisponível. Verifique a Depuração."
-                    isConnected -> controlTransport ?: "Aguardando Depuração no Host"
-                    isConnecting -> "Aguardando Host"
-                    status.isNotBlank() -> status
-                    else -> readiness.message(connectionMode)
-                }], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                val controlStatus = when {
+                    controlReady -> if (controlTransport == "USB") "Control Ready via USB" else "Control Ready via Wi-Fi"
+                    !isConnected && isConnecting -> status.ifBlank { strings["Aguardando Host"] }
+                    !isConnected && status.isNotBlank() -> status
+                    !isConnected -> readiness.message(connectionMode)
+                    hostEngineState == "Starting" -> "Control Engine Starting"
+                    hostEngineState == "Error" -> "Control Engine Error; check Windows"
+                    controlTransport == null -> when (connectionMode) {
+                        "Wi-Fi" -> "APK authenticated; waiting for Wi-Fi ADB"
+                        "USB" -> "APK authenticated; waiting for USB ADB"
+                        else -> "APK authenticated; waiting for USB or Wi-Fi ADB"
+                    }
+                    !readiness.wifiReady && controlTransport == "Wi-Fi" -> "Wi-Fi ADB is no longer ready; check paired debugging"
+                    !readiness.usbReady && controlTransport == "USB" -> "USB ADB is no longer ready; check USB debugging"
+                    !accessibilityEnabled || controlState == ControlState.Disabled -> "Enable Accessibility to allow remote control"
+                    controlState == ControlState.Disconnected -> "Android Accessibility service disconnected"
+                    controlStopped -> "Remote control is paused on Android"
+                    !hostControlEnabled -> "Remote control is paused on Windows"
+                    else -> "Waiting for all control requirements"
+                }
+                Text(strings[controlStatus], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (controlReady || (!isConnected && !isConnecting && status.isBlank() && readiness.transport(connectionMode) != null)) colors.secondary
+                    color = if (controlReady) colors.secondary
                         else if (isConnected) colors.tertiary else colors.onSurfaceVariant,
                     fontWeight = if (isConnected) FontWeight.SemiBold else FontWeight.Normal)
             }
@@ -169,37 +181,46 @@ internal fun DashboardScreen(
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Depuração")
                         Spacer(Modifier.height(12.dp))
-                        ReadinessStatus("USB:", if (readiness.usbReady) "Ready" else if (readiness.usbEnabled == false) "Disable" else "Waiting", readiness.usbReady, failed = readiness.usbEnabled == false, waiting = readiness.usbEnabled != false && !readiness.usbReady)
+                        ReadinessStatus("USB debugging", if (readiness.usbReady) "Ready" else if (readiness.usbEnabled == false) "Disabled" else "Waiting", readiness.usbReady, failed = readiness.usbEnabled == false, waiting = readiness.usbEnabled != false && !readiness.usbReady)
                         Spacer(Modifier.height(8.dp))
-                        ReadinessStatus("Wi-Fi:", if (readiness.wifiReady) "Ready" else if (readiness.wifiEnabled == false) "Disable" else "Waiting", readiness.wifiReady, failed = readiness.wifiEnabled == false, waiting = readiness.wifiEnabled != false && !readiness.wifiReady)
+                        ReadinessStatus("Wi-Fi debugging", if (readiness.wifiReady) "Ready" else if (readiness.wifiEnabled == false) "Disabled" else "Waiting", readiness.wifiReady, failed = readiness.wifiEnabled == false, waiting = readiness.wifiEnabled != false && !readiness.wifiReady)
                         Spacer(Modifier.height(12.dp))
-                        OutlinedButton(onOpenDeveloperSettings, Modifier.fillMaxWidth(), shape = corner) { Text(strings["Open Settings"]) }
+                        FilledTonalButton(onOpenDeveloperSettings, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = corner,
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)) {
+                            Text(strings["Open Debugging Settings"], textAlign = TextAlign.Center)
+                        }
                         Text(strings["Opções do Desenvolvedor"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Remote Control")
                         Spacer(Modifier.height(12.dp))
-                        ReadinessStatus("Accessibility:", if (accessibilityEnabled) "Enable" else "Disable", accessibilityEnabled, failed = !accessibilityEnabled)
+                        ReadinessStatus("Accessibility", if (accessibilityEnabled) "Yes" else "No", accessibilityEnabled, failed = !accessibilityEnabled)
                         Spacer(Modifier.height(8.dp))
-                        val ready = accessibilityEnabled && !controlStopped && controlState != ControlState.Disabled
-                        ReadinessStatus("Remote Control:",
-                            if (ready) "Ready" else "Waiting", ready, waiting = !ready)
+                        val remoteControlReady = accessibilityEnabled
+                            && (controlState == ControlState.Ready || controlState == ControlState.Controlling)
+                            && !controlStopped
+                        ReadinessStatus("Remote Control", if (remoteControlReady) "Ready" else "Waiting", remoteControlReady, waiting = !remoteControlReady)
                         Spacer(Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onOpenAccessibility, Modifier.weight(1f), shape = corner) { Text(strings["Open Settings"]) }
-                            Button(onStopControl, Modifier.weight(1f), enabled = isConnected && !controlStopped,
-                                shape = corner) { Text(strings["Stop Control"]) }
+                        FilledTonalButton(onOpenAccessibility, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = corner,
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)) {
+                            Text(strings["Open Accessibility Settings"], textAlign = TextAlign.Center)
                         }
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         CardHeading("Remote Keyboard")
                         Spacer(Modifier.height(12.dp))
-                        ReadinessStatus("Keyboard:", if (keyboardEnabled) "Enable" else "Disable", keyboardEnabled, failed = !keyboardEnabled)
+                        ReadinessStatus("Remote Keyboard Enabled", if (keyboardEnabled) "Yes" else "No", keyboardEnabled, failed = !keyboardEnabled)
                         Spacer(Modifier.height(8.dp))
-                        ReadinessStatus("Keyboard:", if (keyboardSelected) "Selected" else "No Selected", keyboardSelected, failed = !keyboardSelected)
+                        ReadinessStatus("Remote Keyboard Selected", if (keyboardSelected) "Yes" else "No", keyboardSelected, failed = !keyboardSelected)
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onEnableIme, Modifier.weight(1f), shape = corner) { Text(strings["Open Settings"]) }
-                            OutlinedButton(onSelectIme, Modifier.weight(1f), shape = corner) { Text(strings["Select Keyboard"]) }
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(onEnableIme, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = corner,
+                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)) {
+                                Text(strings["Enable Remote Keyboard in Settings"], textAlign = TextAlign.Center)
+                            }
+                            FilledTonalButton(onSelectIme, Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = corner,
+                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = colors.primaryContainer, contentColor = colors.onPrimaryContainer)) {
+                                Text(strings["Select Remote Keyboard"], textAlign = TextAlign.Center)
+                            }
                         }
                         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = colors.outline)
                         LanguageSelector(language, onLanguageChange)
@@ -254,14 +275,14 @@ private fun LanguageSelector(language: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun ConnectionCircle(connected: Boolean, connecting: Boolean, progress: Float, diameter: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
+private fun ConnectionCircle(connected: Boolean, appConnected: Boolean, connecting: Boolean, progress: Float, diameter: androidx.compose.ui.unit.Dp, onToggle: () -> Unit) {
     val strings = LocalStrings.current
     val colors = MaterialTheme.colorScheme
     val animatedProgress by animateFloatAsState(
         if (connected) 1f else if (connecting) progress.coerceIn(0f, .95f) else 0f,
         tween(450), label = "Connection Progress")
     Box(Modifier.size(diameter).clip(CircleShape).semantics {
-        stateDescription = strings[when { connected -> "Conectado"; connecting -> "Aguardando Host"; else -> "Desconectado" }]
+        stateDescription = strings[when { connected -> "Conectado"; appConnected -> "Waiting for control"; connecting -> "Aguardando Host"; else -> "Desconectado" }]
         if (connecting) progressBarRangeInfo = ProgressBarRangeInfo(animatedProgress, 0f..1f)
     }.clickable(role = Role.Button, onClickLabel = strings[if (connected || connecting) "Desconectar" else "Conectar"],
         onClick = onToggle), contentAlignment = Alignment.Center) {
@@ -283,9 +304,9 @@ private fun ConnectionCircle(connected: Boolean, connecting: Boolean, progress: 
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(strings[when { connected -> "Conectado"; connecting -> "Aguardando"; else -> "Conectar" }],
+            Text(strings[when { connected -> "Conectado"; appConnected || connecting -> "Aguardando"; else -> "Conectar" }],
                 fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text(strings[when { connected -> "TOQUE PARA SAIR"; connecting -> "${(animatedProgress * 100).roundToInt()}%"; else -> "TOQUE AQUI" }],
+            Text(strings[when { appConnected -> "TOQUE PARA SAIR"; connecting -> "${(animatedProgress * 100).roundToInt()}%"; else -> "TOQUE AQUI" }],
                 style = if (connecting) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                 color = colors.primary, textAlign = TextAlign.Center)
         }

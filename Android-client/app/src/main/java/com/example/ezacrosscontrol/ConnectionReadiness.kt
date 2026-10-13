@@ -29,3 +29,17 @@ data class ConnectionReadiness(
         }
     }
 }
+
+fun isControlReady(
+    appConnected: Boolean,
+    transport: String?,
+    engineState: String?,
+    hostControlEnabled: Boolean,
+    accessibilityEnabled: Boolean,
+    manuallyStopped: Boolean,
+    readiness: ConnectionReadiness,
+): Boolean {
+    if (!appConnected || transport == null || !hostControlEnabled || !accessibilityEnabled || manuallyStopped) return false
+    if (engineState !in setOf("Ready", "Captured")) return false
+    return readiness.transport(transport) != null
+}

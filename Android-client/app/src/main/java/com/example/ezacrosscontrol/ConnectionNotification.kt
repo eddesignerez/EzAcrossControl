@@ -15,8 +15,8 @@ import androidx.core.content.ContextCompat
 class ConnectionNotification(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
-    fun update(connected: Boolean, transport: String?, strings: AppStrings) {
-        if (!connected) {
+    fun update(appConnected: Boolean, controlReady: Boolean, transport: String?, strings: AppStrings) {
+        if (!appConnected) {
             clear()
             return
         }
@@ -34,7 +34,10 @@ class ConnectionNotification(private val context: Context) {
             Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val text = listOfNotNull(strings["Conectado"], transport?.takeIf { it == "USB" || it == "Wi-Fi" })
+        val text = listOfNotNull(
+            strings[if (controlReady) "Conectado" else "Waiting for control"],
+            transport?.takeIf { controlReady && (it == "USB" || it == "Wi-Fi") }
+        )
             .joinToString(" · ")
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_connection_status)
