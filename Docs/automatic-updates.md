@@ -77,3 +77,15 @@ e confirmação do sistema; testes sintéticos não equivalem a instalação rea
   substituir o binário ainda em uso durante a atualização. Binários de versões
   anteriores são preservados no upgrade; clientes continuam usando o servidor
   compartilhado padrão.
+
+## Atualização sem interromper o ADB compartilhado (1.1.24)
+
+- A atualização normal é instalada por cima da versão existente; não é necessário
+  desinstalar antes.
+- A partir da 1.1.24, o executável ADB e suas DLLs ficam juntos em
+  `scrcpy/adb-{versão}/`. O instalador não substitui o executável nem DLLs da
+  versão anterior que ainda possam estar abertos.
+- Se o instalador 1.1.23 detectar `adb-1.1.22.exe` em uso ou mostrar “Acesso
+  negado”, escolha **Cancelar**. Não escolha “Fechar os aplicativos
+  automaticamente” nem ignore o erro: isso pode interromper o ADB compartilhado
+  por outros aplicativos. Atualize pelo pacote 1.1.24, que isola também as DLLs.

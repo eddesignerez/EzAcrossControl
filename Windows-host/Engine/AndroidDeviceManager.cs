@@ -16,6 +16,8 @@ namespace WindowsHost.Engine
             {
                 string directory = System.IO.Path.Combine(AppContext.BaseDirectory, "scrcpy");
                 string version = typeof(AndroidDeviceManager).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
+                string isolatedPath = System.IO.Path.Combine(directory, $"adb-{version}", "adb.exe");
+                if (System.IO.File.Exists(isolatedPath)) return isolatedPath;
                 string versionedPath = System.IO.Path.Combine(directory, $"adb-{version}.exe");
                 if (System.IO.File.Exists(versionedPath)) return versionedPath;
                 string legacyPath = System.IO.Path.Combine(directory, "adb.exe");
