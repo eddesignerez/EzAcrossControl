@@ -1,5 +1,5 @@
 #ifndef Version
-  #define Version "1.1.26"
+  #define Version "1.1.27"
 #endif
 #ifndef Bundle
   #define Bundle "..\.publish-staging\windows"

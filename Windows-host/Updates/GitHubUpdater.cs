@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 namespace WindowsHost.Updates;
 
 public sealed record UpdateRelease(string Version, Uri DownloadUrl, long Size, string Sha256);
+public enum UpdateAvailability { Unknown, Current, Available }
+public sealed record UpdateCheckResult(UpdateAvailability Availability, UpdateRelease? Release = null);
 
 /// <summary>Only the public, stable release in our repository can supply an installer.</summary>
 public sealed class GitHubUpdater : IDisposable
@@ -27,37 +29,44 @@ public sealed class GitHubUpdater : IDisposable
         && Version.TryParse(text.TrimStart('v'), out var version) ? version : null;
 
     public static UpdateRelease? ParseRelease(string json, string installed)
+        => ParseCheck(json, installed).Release;
+
+    public static UpdateCheckResult ParseCheck(string json, string installed)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean()) return null;
+        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean()) return new(UpdateAvailability.Unknown);
         string? tag = root.GetProperty("tag_name").GetString();
         var remote = ParseVersion(tag);
         var current = ParseVersion(installed);
-        if (remote == null || current == null || remote <= current || tag != "v" + remote) return null;
+        if (remote == null || current == null || tag != "v" + remote) return new(UpdateAvailability.Unknown);
         string name = $"EZAcrossControl-{remote}-windows-x64-setup.exe";
         var assets = root.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == name).ToArray();
-        if (assets.Length != 1) return null;
+        if (assets.Length != 1) return new(UpdateAvailability.Unknown);
         var asset = assets[0];
         var size = asset.GetProperty("size").GetInt64();
         string? digest = asset.TryGetProperty("digest", out var value) ? value.GetString() : null;
         string url = $"https://github.com/{Repository}/releases/download/{tag}/{name}";
         if (size <= 0 || size > MaximumInstallerBytes || asset.GetProperty("state").GetString() != "uploaded"
             || asset.GetProperty("browser_download_url").GetString() != url
-            || digest == null || !Regex.IsMatch(digest, "^sha256:[0-9a-f]{64}$")) return null;
-        return new UpdateRelease(remote.ToString(), new Uri(url), size, digest[7..]);
+            || digest == null || !Regex.IsMatch(digest, "^sha256:[0-9a-f]{64}$")) return new(UpdateAvailability.Unknown);
+        return remote <= current ? new(UpdateAvailability.Current)
+            : new(UpdateAvailability.Available, new UpdateRelease(remote.ToString(), new Uri(url), size, digest[7..]));
     }
 
     public async Task<UpdateRelease?> CheckAsync(string installed, CancellationToken cancellation = default)
+        => (await CheckStatusAsync(installed, cancellation)).Release;
+
+    public async Task<UpdateCheckResult> CheckStatusAsync(string installed, CancellationToken cancellation = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         timeout.CancelAfter(TimeSpan.FromSeconds(10));
         using var response = await _http.GetAsync($"https://api.github.com/repos/{Repository}/releases/latest",
             HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (response.StatusCode == HttpStatusCode.NotFound) return new(UpdateAvailability.Unknown);
         response.EnsureSuccessStatusCode();
         var body = await ReadBoundedAsync(response.Content, 1024 * 1024, timeout.Token);
-        return ParseRelease(System.Text.Encoding.UTF8.GetString(body), installed);
+        return ParseCheck(System.Text.Encoding.UTF8.GetString(body), installed);
     }
 
     public static bool AllowedDownloadRedirect(Uri uri) => uri.Scheme == "https" && uri.IsDefaultPort

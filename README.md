@@ -24,8 +24,8 @@ Estas imagens são **estudos estáticos da identidade visual**, criados a partir
 
 **Windows e Android 1.1.18 — funcionamento confirmado no HiPadPlus.**
 
-- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.26/EZAcrossControl-1.1.26-windows-x64-setup.exe)
-- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.26/EZAcrossControl-1.1.26-android.apk)
+- [Instalador Windows (.exe)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-windows-x64-setup.exe)
+- [Aplicativo Android (.apk)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-android.apk)
 - [Windows portátil (.zip)](https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.18/EZAcrossControl-1.1.18-windows-x64-portable.zip)
 - [Versões, fontes de terceiros e verificações de integridade](https://github.com/eddesignerez/EzAcrossControl/releases)
 

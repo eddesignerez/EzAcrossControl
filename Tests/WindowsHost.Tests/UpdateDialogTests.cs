@@ -56,6 +56,7 @@ public class UpdateDialogTests
                     }
                 }
                 owner.Close();
+                MainWindowLayoutPreview.RenderAndAssert(app, root);
                 app.Shutdown();
             } catch (Exception ex) { failure = ex; }
         });

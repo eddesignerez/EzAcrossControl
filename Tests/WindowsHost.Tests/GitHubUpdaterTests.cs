@@ -36,6 +36,32 @@ public class GitHubUpdaterTests
     }
 
     [Theory]
+    [InlineData("1.1.19", UpdateAvailability.Available)]
+    [InlineData("1.1.20", UpdateAvailability.Current)]
+    [InlineData("1.1.21", UpdateAvailability.Current)]
+    public void VersionStatusDistinguishesCurrentFromAvailable(string installed, UpdateAvailability expected)
+    {
+        var result = GitHubUpdater.ParseCheck(Release(), installed);
+        Assert.Equal(expected, result.Availability);
+        Assert.Equal(expected == UpdateAvailability.Available, result.Release != null);
+    }
+
+    [Fact]
+    public void InvalidOrPreviewReleaseCannotClaimInstalledVersionIsCurrent()
+    {
+        Assert.Equal(UpdateAvailability.Unknown, GitHubUpdater.ParseCheck(Release(draft: true), "1.1.20").Availability);
+        Assert.Equal(UpdateAvailability.Unknown, GitHubUpdater.ParseCheck(Release(prerelease: true), "1.1.20").Availability);
+        Assert.Equal(UpdateAvailability.Unknown, GitHubUpdater.ParseCheck(Release(digest: "invalid"), "1.1.20").Availability);
+    }
+
+    [Fact]
+    public async Task MissingReleaseIsUnknownInsteadOfGreen()
+    {
+        using var updater = new GitHubUpdater(new FakeHttp(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
+        Assert.Equal(UpdateAvailability.Unknown, (await updater.CheckStatusAsync("1.1.26")).Availability);
+    }
+
+    [Theory]
     [InlineData("v1.1.20-beta")]
     [InlineData("latest")]
     [InlineData("1.1")]

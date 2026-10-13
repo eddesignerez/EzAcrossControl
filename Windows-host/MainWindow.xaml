@@ -67,6 +67,31 @@
             <Setter Property="MinHeight" Value="34"/>
             <Setter Property="Padding" Value="0"/>
         </Style>
+        <Style x:Key="PreferenceCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border x:Name="CheckFrame" Height="18" VerticalAlignment="Center" CornerRadius="4" Background="{DynamicResource SurfaceSoftBrush}" BorderBrush="{DynamicResource TextSecondaryBrush}" BorderThickness="1">
+                                <Path x:Name="CheckMark" Visibility="Collapsed" Margin="3" Stroke="{DynamicResource SuccessPrimaryBrush}" StrokeThickness="2" Data="M0,5 L3,8 L9,1"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True"><Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="CheckFrame" Property="BorderBrush" Value="{DynamicResource InfoPrimaryBrush}"/><Setter TargetName="CheckFrame" Property="BorderThickness" Value="2"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
@@ -149,9 +174,9 @@
     </Window.Resources>
 
     <Grid Background="{DynamicResource BackgroundBrush}">
-        <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="MainContent" Margin="16,16,16,16" MaxWidth="1220">
-                <Grid Margin="0,0,-6,14">
+            <Grid x:Name="MainContent" Margin="16" MaxWidth="1220">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Border Background="Transparent" MouseLeftButtonDown="Header_DragMove" Cursor="SizeAll">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -189,9 +214,9 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Margin="0,0,0,12">
+                <Grid Grid.Row="1" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="130">
+                    <Border x:Name="ConnectionCard" Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="130">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -202,12 +227,16 @@
                                 <TextBlock x:Name="TxtLocalServerState" Text="{DynamicResource Ui.Off}" Style="{StaticResource LabelStyle}"/>
                             </WrapPanel>
                             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                <Button x:Name="BtnStart" Width="92" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Start Server}" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
-                                <Button x:Name="BtnStop" Width="58" ContentTemplate="{StaticResource WrappedButtonText}" Content="{DynamicResource Ui.Stop}" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}"/>
+                                <Button x:Name="BtnStart" Width="36" Height="36" Padding="0" ToolTip="{DynamicResource Ui.Start Server}" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="{DynamicResource Ui.Start Server}" Click="BtnStart_Click" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0">
+                                    <Path Width="16" Height="18" Margin="2,0,0,0" Stretch="Uniform" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="M0,0 L14,9 L0,18 Z"/>
+                                </Button>
+                                <Button x:Name="BtnStop" Width="36" Height="36" Padding="0" ToolTip="{DynamicResource Ui.Stop}" ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="{DynamicResource Ui.Stop}" IsEnabled="False" Click="BtnStop_Click" Style="{StaticResource SecondaryButtonStyle}">
+                                    <Rectangle Width="14" Height="14" RadiusX="1" RadiusY="1" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                </Button>
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="130">
+                    <Border x:Name="NetworkCard" Grid.Column="2" Style="{StaticResource CardStyle}" MinHeight="130">
                         <StackPanel>
                             <TextBlock Text="{DynamicResource Ui.Network}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,14"/>
                             <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="{DynamicResource FieldLabelWidth}"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -226,7 +255,7 @@
                     </Border>
                 </Grid>
 
-                <Grid Margin="0,0,0,12">
+                <Grid Grid.Row="2" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource CardStyle}" MinHeight="206">
                         <StackPanel>
@@ -282,7 +311,7 @@
                     </Border>
                 </Grid>
 
-                <Border Style="{StaticResource CardStyle}">
+                <Border Grid.Row="3" Style="{StaticResource CardStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel>
@@ -305,53 +334,58 @@
                     </Grid>
                 </Border>
 
-                <Border x:Name="AdvancedPanel" Style="{StaticResource CardStyle}" Margin="0,12,0,0" Visibility="Collapsed">
-                    <StackPanel>
-                        <TextBlock Text="{DynamicResource Ui.Diagnostics &amp; Activity Log}" Style="{StaticResource LabelStyle}" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <Grid Margin="0,0,0,11"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-<TextBlock Text="{DynamicResource Ui.Diagnostics}" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
-<StackPanel Grid.Column="1">
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-        <TextBlock Text="{DynamicResource Ui.Language}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
-        <ComboBox x:Name="CmbLanguage" Width="190" DisplayMemberPath="Label" SelectedValuePath="Code" SelectionChanged="CmbLanguage_SelectionChanged"/>
-    </StackPanel>
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-        <TextBlock Text="{DynamicResource Ui.Application Version}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
-        <TextBlock x:Name="TxtApplicationVersion" Style="{StaticResource ValueStyle}" FontSize="12"/>
-    </StackPanel>
-</StackPanel></Grid>
-                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEngineState}" Style="{StaticResource ValueStyle}"/>
+                <Border x:Name="AdvancedPanel" Grid.Row="4" Style="{StaticResource CardStyle}" Margin="0,12,0,0" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Text="{DynamicResource Ui.Diagnostics}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,8"/>
+                            <StackPanel x:Name="DiagnosticsList" Grid.Row="1" Grid.IsSharedSizeScope="True" HorizontalAlignment="Left">
+                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Input Engine}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEngineState}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Transport}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtTransport}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Accessibility}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="TxtAndroidAccessibility" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Remote Keyboard Enabled}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="TxtAndroidKeyboardEnabled" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Remote Keyboard Selected}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock x:Name="TxtAndroidKeyboardSelected" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="DiagnosticLabel"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Ui.Edge Status}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEdgeStatus}" Style="{StaticResource ValueStyle}"/>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Grid.RowSpan="2" VerticalAlignment="Top">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="{DynamicResource Ui.Language}" Style="{StaticResource LabelStyle}" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="CmbLanguage" Width="190" DisplayMemberPath="Label" SelectedValuePath="Code" SelectionChanged="CmbLanguage_SelectionChanged"/>
+                                </StackPanel>
+                                <CheckBox x:Name="ChkStartWithWindows" Content="{DynamicResource Ui.Start with Windows}" Style="{StaticResource PreferenceCheckBoxStyle}" HorizontalAlignment="Right" Margin="0,6,0,0" Checked="ChkStartWithWindows_Changed" Unchecked="ChkStartWithWindows_Changed" AutomationProperties.Name="{DynamicResource Ui.Start with Windows}"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
+                                    <TextBlock Text="{DynamicResource Ui.Version}" Style="{StaticResource LabelStyle}" Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="TxtApplicationVersion" Style="{StaticResource ValueStyle}" FontSize="12" Foreground="{DynamicResource WarningPrimaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
                         </Grid>
-                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Transport}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtTransport}" Style="{StaticResource ValueStyle}"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Accessibility}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock x:Name="TxtAndroidAccessibility" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Remote Keyboard Enabled}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock x:Name="TxtAndroidKeyboardEnabled" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,13"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Remote Keyboard Selected}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock x:Name="TxtAndroidKeyboardSelected" Grid.Column="1" Text="{DynamicResource Ui.Waiting}" Style="{StaticResource ValueStyle}"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,13"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="{DynamicResource Ui.Edge Status}" Style="{StaticResource LabelStyle}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Text, ElementName=TxtEdgeStatus}" Style="{StaticResource ValueStyle}"/>
-                        </Grid>
-                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,13"/>
-                        <TextBlock Text="{DynamicResource Ui.Activity Log}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
-                        <TextBox x:Name="TxtLog" IsReadOnly="True" Height="125" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
-                        <TextBox x:Name="TxtInputDebug" Visibility="Collapsed" IsReadOnly="True"/>
-                    </StackPanel>
+                        <Border Grid.Row="2" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="3" Text="{DynamicResource Ui.Activity Log}" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,6"/>
+                        <TextBox x:Name="TxtLog" Grid.Row="4" IsReadOnly="True" MinHeight="48" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" FontFamily="Consolas"/>
+                        <TextBox x:Name="TxtInputDebug" Grid.Row="5" Visibility="Collapsed" IsReadOnly="True"/>
+                    </Grid>
                 </Border>
-            </StackPanel>
-        </ScrollViewer>
+            </Grid>
         <TextBox x:Name="HiddenImeSink" Width="1" Height="1" Opacity="0.01" IsHitTestVisible="False"
                  PreviewTextInput="HiddenImeSink_PreviewTextInput" TextChanged="HiddenImeSink_TextChanged"
                  InputMethod.IsInputMethodEnabled="True"/>

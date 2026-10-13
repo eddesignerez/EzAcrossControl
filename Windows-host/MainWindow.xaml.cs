@@ -118,7 +118,12 @@ namespace WindowsHost
         private bool _trayHintShown;
         private double _heightBeforeAdvanced;
         private double _topBeforeAdvanced;
+        private double _minHeightBeforeAdvanced;
         private bool _updatingLanguage;
+        private bool _updatingStartup = true;
+        private bool _startupEnabled;
+        private WindowsStartupRegistration? _startupRegistration;
+        private Updates.UpdateAvailability _versionAvailability;
         private bool _startingServer;
 
 
@@ -126,7 +131,9 @@ namespace WindowsHost
         {
             InitializeComponent();
             InitializeTrayIcon();
-            TxtApplicationVersion.Text = $"v{GetApplicationVersion()}";
+            TxtApplicationVersion.Text = GetApplicationVersion();
+            SetVersionAvailability(Updates.UpdateAvailability.Unknown);
+            InitializeStartupPreference();
             CmbLanguage.ItemsSource = new[] { new LanguageOption("system", Localization.T("System Language")) }.Concat(Localization.Languages);
             CmbLanguage.SelectedValue = Localization.Preference;
             ApplyLanguageLayout();
@@ -279,9 +286,61 @@ namespace WindowsHost
 
         private static string GetApplicationVersion()
         {
-            var productVersion = FileVersionInfo.GetVersionInfo(Environment.ProcessPath ?? string.Empty).ProductVersion;
-            var version = productVersion?.Split('+', '-')[0];
-            return string.IsNullOrWhiteSpace(version) ? "—" : version;
+            return typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "—";
+        }
+
+        private void SetVersionAvailability(Updates.UpdateAvailability availability)
+        {
+            _versionAvailability = availability;
+            ApplyVersionAvailabilityTo(TxtApplicationVersion, availability);
+        }
+
+        internal static void ApplyVersionAvailabilityTo(System.Windows.Controls.TextBlock text, Updates.UpdateAvailability availability)
+        {
+            text.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                availability == Updates.UpdateAvailability.Current ? "SuccessPrimaryBrush" : "WarningPrimaryBrush");
+            text.ToolTip = Localization.T(availability switch
+            {
+                Updates.UpdateAvailability.Current => "Application is up to date",
+                Updates.UpdateAvailability.Available => "Update available",
+                _ => "Unable to verify updates"
+            });
+        }
+
+        private void InitializeStartupPreference()
+        {
+            try
+            {
+                _startupRegistration = new WindowsStartupRegistration(Environment.ProcessPath ?? string.Empty);
+                _startupEnabled = _startupRegistration.IsEnabled;
+                ChkStartWithWindows.IsChecked = _startupEnabled;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("STARTUP", "Startup preference unavailable: " + ex.GetType().Name);
+                ChkStartWithWindows.IsEnabled = false;
+            }
+            finally { _updatingStartup = false; }
+        }
+
+        private void ChkStartWithWindows_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_updatingStartup || _startupRegistration == null) return;
+            try
+            {
+                bool enabled = ChkStartWithWindows.IsChecked == true;
+                _startupRegistration.SetEnabled(enabled);
+                _startupEnabled = enabled;
+            }
+            catch (Exception ex)
+            {
+                _updatingStartup = true;
+                try { ChkStartWithWindows.IsChecked = _startupEnabled; }
+                finally { _updatingStartup = false; }
+                Logger.Log("STARTUP", "Startup preference change failed: " + ex.GetType().Name);
+                MessageBox.Show(Localization.T("Unable to change Windows startup preference"), "EZ Across Control",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private async Task CheckForUpdatesAsync()
@@ -289,7 +348,10 @@ namespace WindowsHost
             using var updater = new Updates.GitHubUpdater();
             try
             {
-                var release = await updater.CheckAsync(GetApplicationVersion());
+                var check = await updater.CheckStatusAsync(GetApplicationVersion());
+                if (_closing) return;
+                SetVersionAvailability(check.Availability);
+                var release = check.Release;
                 if (release == null || _closing) return;
                 // Do not steal focus while the user is controlling Android.
                 while (_scrcpyEngine.IsCaptured && !_closing) await Task.Delay(1000);
@@ -341,7 +403,11 @@ namespace WindowsHost
                 try { dialog.ShowDialog(); }
                 finally { _updatePromptOpen = false; }
             }
-            catch (Exception ex) { Logger.Log("UPDATE", "Startup check unavailable: " + ex.GetType().Name); }
+            catch (Exception ex)
+            {
+                if (!_closing) SetVersionAvailability(Updates.UpdateAvailability.Unknown);
+                Logger.Log("UPDATE", "Startup check unavailable: " + ex.GetType().Name);
+            }
         }
 
         private void BtnThemeLight_Click(object sender, RoutedEventArgs e) => SetTheme(AppTheme.Light);
@@ -400,28 +466,42 @@ namespace WindowsHost
                 : state == ScrcpyEngineState.Error ? "BrandCoralSoftBrush" : "SurfaceSoftBrush");
         }
 
-        private double MeasureLabel(string source, double size, FontWeight weight)
+        private static double MeasureLabel(Window window, string source, double size, FontWeight weight)
         {
             var text = new FormattedText(Localization.T(source), System.Globalization.CultureInfo.CurrentUICulture,
-                System.Windows.FlowDirection.LeftToRight, new Typeface(FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
-                size, (Brush)FindResource("TextPrimaryBrush"), VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                System.Windows.FlowDirection.LeftToRight, new Typeface(window.FontFamily, FontStyles.Normal, weight, FontStretches.Normal),
+                size, (Brush)window.FindResource("TextPrimaryBrush"), VisualTreeHelper.GetDpi(window).PixelsPerDip);
             return Math.Ceiling(text.WidthIncludingTrailingWhitespace);
         }
 
         private void ApplyLanguageLayout()
         {
+            SetVersionAvailability(_versionAvailability);
+            ApplyLanguageLayoutTo(this);
+        }
+
+        // Also used by the isolated XAML preview, without starting the host.
+        internal static void ApplyLanguageLayoutTo(Window window)
+        {
+            var BtnStart = (System.Windows.Controls.Button)window.FindName("BtnStart");
+            var BtnStop = (System.Windows.Controls.Button)window.FindName("BtnStop");
+            var CmbActiveEdge = (System.Windows.Controls.ComboBox)window.FindName("CmbActiveEdge");
+            var CmbConnectionMode = (System.Windows.Controls.ComboBox)window.FindName("CmbConnectionMode");
+            var FontSize = window.FontSize;
+            double MeasureLabel(string source, double size, FontWeight weight) => MainWindow.MeasureLabel(window, source, size, weight);
             var labels = new[] { "Android Position", "Connection Mode", "Transport / Control", "Android Control", "Sensitivity",
                 "Activation Delay", "Edge Status", "Device", "Local IP", "Port" };
             var labelWidth = Math.Max(155, labels.Max(x => MeasureLabel(x, 12, FontWeights.Normal)) + 18);
             labelWidth = Math.Max(labelWidth, new[] { "Server Running", "Server Stopped", "Error" }
                 .Max(x => MeasureLabel(x, 22, FontWeights.Bold)) + 14);
             System.Windows.Application.Current.Resources["FieldLabelWidth"] = new GridLength(labelWidth);
-            BtnStart.Width = new[] { "Start Server", "Started" }.Max(x => MeasureLabel(x, FontSize, FontWeights.SemiBold)) + 30;
-            BtnStop.Width = Math.Max(52, MeasureLabel("Stop", FontSize, FontWeights.SemiBold) + 30);
             CmbActiveEdge.Width = Math.Max(130, new[] { "Right", "Left", "Top", "Bottom", "Disabled" }
                 .Max(x => MeasureLabel(x, FontSize, FontWeights.Normal)) + 44);
             CmbConnectionMode.Width = Math.Max(130, MeasureLabel("Auto", FontSize, FontWeights.Normal) + 44);
-            var fieldWidth = Math.Max(CmbActiveEdge.Width, Math.Max(CmbConnectionMode.Width, BtnStart.Width + BtnStop.Width + 8));
+            var portFieldWidth = ((System.Windows.Controls.TextBox)window.FindName("TxtPort")).Width
+                + ((System.Windows.Controls.Button)window.FindName("BtnApplyPort")).Width + 8;
+            var fieldWidth = Math.Max(portFieldWidth, Math.Max(CmbActiveEdge.Width,
+                Math.Max(CmbConnectionMode.Width, BtnStart.Width + BtnStop.Width + 8)));
             // Use the same two columns in every language; expand only as much as the translated content needs.
             var cardWidth = labelWidth + fieldWidth + 34;
             var actionWidth = new[] { "Capture Android", "Return Windows" }.Sum(x => MeasureLabel(x, FontSize, FontWeights.SemiBold) + 30) + 8 + 34;
@@ -429,10 +509,11 @@ namespace WindowsHost
                 .Max(x => MeasureLabel(x, 17, FontWeights.SemiBold)) + 34;
             cardWidth = Math.Max(cardWidth, Math.Max(actionWidth, titles));
             var desired = Math.Max(740, cardWidth * 2 + 12 + 32);
+            ((FrameworkElement)window.FindName("MainContent")).MaxWidth = Math.Max(1220, desired - 32);
             var available = SystemParameters.WorkArea.Width - 8;
-            MinWidth = Math.Min(desired, available);
-            Width = MinWidth;
-            if (IsLoaded) Left = Math.Max(SystemParameters.WorkArea.Left, Math.Min(Left, SystemParameters.WorkArea.Right - Width));
+            window.MinWidth = Math.Min(desired, available);
+            window.Width = window.MinWidth;
+            if (window.IsLoaded) window.Left = Math.Max(SystemParameters.WorkArea.Left, Math.Min(window.Left, SystemParameters.WorkArea.Right - window.Width));
         }
 
         private void BtnAdvanced_Click(object sender, RoutedEventArgs e)
@@ -442,6 +523,7 @@ namespace WindowsHost
                 AdvancedPanel.Visibility = Visibility.Collapsed;
                 if (_heightBeforeAdvanced > 0)
                 {
+                    MinHeight = _minHeightBeforeAdvanced;
                     Height = _heightBeforeAdvanced;
                     Top = _topBeforeAdvanced;
                 }
@@ -450,13 +532,30 @@ namespace WindowsHost
             {
                 _heightBeforeAdvanced = Height;
                 _topBeforeAdvanced = Top;
+                _minHeightBeforeAdvanced = MinHeight;
                 AdvancedPanel.Visibility = Visibility.Visible;
-                UpdateLayout();
                 var workArea = SystemParameters.WorkArea;
-                var contentHeight = MainContent.ActualHeight + MainContent.Margin.Top + MainContent.Margin.Bottom;
-                Height = Math.Min(workArea.Height - 8, Math.Max(_heightBeforeAdvanced, contentHeight));
+                var contentHeight = MeasureAdvancedMinimumTo(this);
+                MinHeight = Math.Min(workArea.Height - 8, contentHeight);
+                // Reserve a comfortable log viewport when the monitor has room.
+                Height = Math.Min(workArea.Height - 8, Math.Max(_heightBeforeAdvanced, contentHeight + 77));
                 Top = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - Height));
             }
+        }
+
+        internal static double MeasureAdvancedMinimumTo(Window window)
+        {
+            var content = (FrameworkElement)window.FindName("MainContent");
+            var log = (System.Windows.Controls.TextBox)window.FindName("TxtLog");
+            var previousMaximum = log.MaxHeight;
+            try
+            {
+                // Measure the viewport, not the accumulated activity text.
+                log.MaxHeight = log.MinHeight;
+                content.Measure(new System.Windows.Size(window.Width, double.PositiveInfinity));
+                return content.DesiredSize.Height;
+            }
+            finally { log.MaxHeight = previousMaximum; }
         }
 
         private void Header_DragMove(object sender, MouseButtonEventArgs e)
@@ -594,8 +693,7 @@ namespace WindowsHost
             bool controlReady = running && IsControlReady();
             UpdateTrayConnectionIcon(controlReady);
             var state = GetConnectionStage(running, appConnected);
-            BtnStart.SetResourceReference(System.Windows.Controls.ContentControl.ContentProperty, running ? "Ui.Started" : "Ui.Start Server");
-            BtnStart.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+            ApplyServerButtonsTo(this, running, _startingServer);
             Localization.SetStatus(TxtServerStatus, running ? "Server Running" : "Server Stopped");
             TxtServerStatus.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Localization.SetStatus(TxtLocalServerState, state);
@@ -610,10 +708,20 @@ namespace WindowsHost
                 !_androidClientStatusReceived ? "WarningPrimaryBrush" : _androidKeyboardEnabled ? "SuccessPrimaryBrush" : "ErrorPrimaryBrush");
             TxtAndroidKeyboardSelected.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
                 !_androidClientStatusReceived ? "WarningPrimaryBrush" : _androidKeyboardSelected ? "SuccessPrimaryBrush" : "ErrorPrimaryBrush");
-            BtnStart.IsEnabled = !running && !_startingServer;
-            BtnStop.IsEnabled = running;
             TxtPort.IsEnabled = !_startingServer;
             BtnApplyPort.IsEnabled = !_startingServer;
+        }
+
+        internal static void ApplyServerButtonsTo(Window window, bool running, bool starting)
+        {
+            var start = (System.Windows.Controls.Button)window.FindName("BtnStart");
+            var stop = (System.Windows.Controls.Button)window.FindName("BtnStop");
+            start.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, running ? "SuccessPrimaryBrush" : "TextPrimaryBrush");
+            stop.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, !running && !starting ? "ErrorPrimaryBrush" : "TextPrimaryBrush");
+            start.SetResourceReference(FrameworkElement.ToolTipProperty, running ? "Ui.Server Running" : "Ui.Start Server");
+            stop.SetResourceReference(FrameworkElement.ToolTipProperty, !running && !starting ? "Ui.Server Stopped" : "Ui.Stop");
+            start.IsEnabled = !running && !starting;
+            stop.IsEnabled = running;
         }
 
         private bool IsControlReady()
