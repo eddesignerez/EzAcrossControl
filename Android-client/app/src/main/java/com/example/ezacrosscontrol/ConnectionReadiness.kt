@@ -41,5 +41,8 @@ fun isControlReady(
 ): Boolean {
     if (!appConnected || transport == null || !hostControlEnabled || !accessibilityEnabled || manuallyStopped) return false
     if (engineState !in setOf("Ready", "Captured")) return false
-    return readiness.transport(transport) != null
+    // The host's active scrcpy session is authoritative once established. The
+    // Android app polls /readiness separately; a transient timeout/503 there
+    // must not make an already-running remote-control session look disconnected.
+    return true
 }

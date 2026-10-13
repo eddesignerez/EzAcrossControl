@@ -618,7 +618,6 @@ namespace WindowsHost
         {
             return IsAndroidCompanionConnected()
                 && _androidClientStatusReceived
-                && _androidAdbReady
                 && _androidAccessibilityEnabled
                 && _androidRemoteControlReady
                 && !_controlPaused
@@ -630,6 +629,12 @@ namespace WindowsHost
         {
             if (!serverRunning) return "Server Stopped";
             if (!appConnected) return "Waiting for Android App";
+            if (!_androidClientStatusReceived) return "Verifying Android Settings";
+            if (!_androidAccessibilityEnabled) return "Android Accessibility Disabled";
+            if (_controlPaused || !_androidRemoteControlReady) return "Remote Control Paused on Android";
+            if ((_scrcpyEngine.State is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured)
+                && (_engineTransport is "USB" or "Wi-Fi"))
+                return _engineTransport == "USB" ? "Control Ready via USB" : "Control Ready via Wi-Fi";
             if (_scrcpyEngine.State == ScrcpyEngineState.Error) return "Control Engine Error; check Windows";
             if (_scrcpyEngine.State == ScrcpyEngineState.Starting) return "Control Engine Starting";
             if (_engineTransport is not ("USB" or "Wi-Fi"))
@@ -639,15 +644,10 @@ namespace WindowsHost
                     ConnectionMode.Usb => "Waiting for USB ADB",
                     _ => "Waiting for ADB Device"
                 };
-            if (!_androidClientStatusReceived) return "Verifying Android Settings";
             if (!_androidAdbReady)
                 return _engineTransport == "Wi-Fi"
                     ? "Wi-Fi ADB is no longer ready; check paired debugging"
                     : "USB ADB is no longer ready; check USB debugging";
-            if (!_androidAccessibilityEnabled) return "Android Accessibility Disabled";
-            if (_controlPaused || !_androidRemoteControlReady) return "Remote Control Paused on Android";
-            if (_scrcpyEngine.State is ScrcpyEngineState.Ready or ScrcpyEngineState.Captured)
-                return _engineTransport == "USB" ? "Control Ready via USB" : "Control Ready via Wi-Fi";
             return "Waiting for all control requirements";
         }
 

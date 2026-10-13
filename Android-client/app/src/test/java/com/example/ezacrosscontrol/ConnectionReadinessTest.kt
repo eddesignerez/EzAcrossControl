@@ -50,6 +50,7 @@ class ConnectionReadinessTest {
         assertFalse(ready(hostControlEnabled = false))
         assertFalse(ready(accessibilityEnabled = false))
         assertFalse(ready(manuallyStopped = true))
-        assertFalse(ready(readiness = both.copy(usbConnected = false)))
+        assertTrue(ready(readiness = both.copy(hostAvailable = false, usbConnected = false)))
+        assertFalse(ready(engineState = "Offline", readiness = both.copy(usbConnected = false)))
     }
 }
