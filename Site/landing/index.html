@@ -386,11 +386,14 @@ footer .wordmark { font-size: .9375rem; }
   body { font-size: 1.0625rem; }
   .lede { font-size: 1.1875rem; }
   .top nav a, .desk-foot { font-size: .9375rem; }
-  th, td { padding: 12px 10px; }
+  th, td { padding: 12px 8px; }
+  table { font-size: .9375rem; }
+  thead th { white-space: normal; letter-spacing: .03em; }
+  .cell-blocked { font-size: .875rem; }
   .resolver { padding: 16px; }
   .resolver .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .field select { min-width: 0; width: 100%; min-height: 44px; }
-  .check { grid-column: 1 / -1; padding-bottom: 0; }
+  .check { grid-column: 1 / -1; padding-bottom: 0; min-height: 44px; }
   .check input { width: 22px; height: 22px; }
   .req { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 14px 0; }
   .cmd { flex-direction: column; align-items: stretch; }
@@ -665,6 +668,7 @@ footer .wordmark { font-size: .9375rem; }
     document.querySelectorAll("#matrix td").forEach(td => {
       td.dataset.hit = String(td.dataset.w === modeW.value && td.dataset.a === modeA.value);
     });
+    if (!current.ok && side === "android") resetCursor();
     renderStatus();
   }
   [modeW, modeA, usbReady].forEach(el => el.addEventListener("change", updateResolver));
