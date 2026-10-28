@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>EzAcrossControl · Conecte. Controle. Continue.</title>
+<meta name="description" content="Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas pela borda do monitor. Na rede local, sem conta e sem nuvem.">
+<meta name="theme-color" content="#08162C">
+<link rel="icon" type="image/png" href="icon-128.png">
+<link rel="apple-touch-icon" href="icon-128.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="EzAcrossControl">
+<meta property="og:description" content="Controle seu Android com o mouse e o teclado do Windows e alterne entre as telas pela borda do monitor. Na rede local, sem conta e sem nuvem.">
+<meta property="og:image" content="https://eddesignerez.github.io/EzAcrossControl/og-image.png">
+<meta property="og:url" content="https://eddesignerez.github.io/EzAcrossControl/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: split hero (promessa à esquerda, mesa Windows ↔ Android interativa à direita),
+   depois faixas de conteúdo numa coluna de 1120px. Tokens seguem Docs/design-system.md. */
+:root {
+  /* Design System — Light */
+  --background: #F6F8FC;
+  --surface: #FFFFFF;
+  --surface-soft: #EEF2F8;
+  --border: #E2E8F2;
+  --text-primary: #102347;
+  --text-secondary: #70809B;
+  --brand-coral: #FF604B;
+  --brand-coral-soft: #FFF0ED;
+  --success: #16835B;
+  --shadow: rgba(30,55,90,0.09);
+  --shadow-soft: rgba(30,55,90,0.08);
+  /* Marca (constantes nos dois temas) */
+  --logo-blue: #152D4D;
+  --cold-white: #EDF4FF;
+  --structural: #08162C;
+  /* Semânticos derivados */
+  --success-primary: var(--success);
+  --error-primary: #C2412E;
+  --on-coral: var(--logo-blue);
+  --wordmark: var(--logo-blue);
+  --device-screen: var(--surface-soft);
+  --device-frame: var(--logo-blue);
+  --headline-accent: var(--text-primary);
+
+  --font-sans: "Inter", Arial, system-ui, sans-serif;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.75rem, 1.3rem + 1.6vw, 2.25rem);
+  --step-4: clamp(2.5rem, 1.6rem + 3.8vw, 4.25rem);
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --link-ms: 240ms;
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #08162C;
+    --surface: #102543;
+    --surface-soft: #152D4D;
+    --border: #244062;
+    --text-primary: #EDF4FF;
+    --text-secondary: #9FB0C9;
+    --brand-coral-soft: #3B2833;
+    --shadow: rgba(0,0,0,0.28);
+    --shadow-soft: rgba(0,0,0,0.22);
+    --error-primary: #FF8A78;
+    --wordmark: var(--cold-white);
+    --device-screen: var(--structural);
+    --device-frame: var(--border);
+    --headline-accent: var(--brand-coral);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: #08162C;
+  --surface: #102543;
+  --surface-soft: #152D4D;
+  --border: #244062;
+  --text-primary: #EDF4FF;
+  --text-secondary: #9FB0C9;
+  --brand-coral-soft: #3B2833;
+  --shadow: rgba(0,0,0,0.28);
+  --shadow-soft: rgba(0,0,0,0.22);
+  --error-primary: #FF8A78;
+  --wordmark: var(--cold-white);
+  --device-screen: var(--structural);
+  --device-frame: var(--border);
+  --headline-accent: var(--brand-coral);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-feature-settings: "cv11", "ss01";
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--brand-coral); outline-offset: 3px; border-radius: 4px; }
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: var(--step-3); line-height: 1.15; font-weight: 700; }
+h3 { font-size: var(--step-1); line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+p { margin: 0; }
+.eyebrow {
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.lede { font-size: var(--step-1); line-height: 1.55; max-width: 34ch; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------- Topo ---------- */
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--background);
+}
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.top .wrap { display: flex; align-items: center; gap: 24px; padding-block: 12px; }
+.lockup { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.lockup svg { width: 32px; height: 32px; flex: none; }
+.wordmark { font-weight: 700; font-size: 1.125rem; letter-spacing: -0.02em; color: var(--wordmark); }
+.top nav { display: flex; gap: 20px; margin-left: auto; font-size: 0.9375rem; font-weight: 500; }
+.top nav a { text-decoration: none; color: var(--text-secondary); }
+.top nav a:hover { color: var(--text-primary); }
+.theme {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px;
+  background: var(--surface);
+}
+.theme button {
+  font: inherit; font-size: var(--step--1); font-weight: 600; border: 0; background: none;
+  color: var(--text-secondary); padding: 4px 10px; border-radius: 999px; cursor: pointer;
+}
+.theme button[aria-pressed="true"] { background: var(--surface-soft); color: var(--text-primary); }
+@media (max-width: 760px) { .top nav { display: none; } .theme { margin-left: auto; } }
+@media (max-width: 440px) { .top .wrap { gap: 12px; } .wordmark { font-size: 1rem; } .theme button { padding: 4px 7px; } }
+@media (max-width: 380px) { .top .wordmark { display: none; } }
+
+/* ---------- Hero ---------- */
+.hero .wrap {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: clamp(32px, 5vw, 72px); align-items: center; padding-block: clamp(40px, 7vw, 88px);
+}
+.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.hero h1 { font-size: var(--step-4); line-height: 1.02; font-weight: 700; letter-spacing: -0.035em; }
+.hero h1 span { display: block; }
+.hero h1 .accent { color: var(--headline-accent); text-decoration: underline; text-decoration-color: var(--brand-coral); text-decoration-thickness: 0.09em; text-underline-offset: 0.12em; }
+.test-badge {
+  justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--step--1); font-weight: 600; padding: 4px 12px 4px 8px; border-radius: 999px;
+  background: var(--brand-coral-soft); color: var(--text-primary); border: 1px solid var(--border);
+}
+.test-badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-coral); }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600;
+  font-size: 0.9375rem; padding: 12px 18px; border-radius: var(--radius-s); border: 1px solid transparent;
+  transition: transform var(--link-ms) var(--ease), box-shadow var(--link-ms) var(--ease);
+}
+.btn small { font-weight: 500; opacity: .8; font-size: var(--step--1); }
+.btn-primary { background: var(--brand-coral); color: var(--on-coral); box-shadow: 0 6px 18px var(--shadow); }
+.btn-secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px var(--shadow); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9375rem; color: var(--text-secondary); }
+.facts li { display: inline-flex; align-items: center; gap: 8px; }
+.facts li::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--success-primary); }
+.facts { list-style: none; margin: 0; padding: 0; }
+
+/* ---------- Mesa interativa ---------- */
+.desk {
+  min-width: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-m); box-shadow: 0 18px 48px var(--shadow-soft); overflow: hidden;
+}
+.desk-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: var(--step--1);
+}
+.status {
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
+  padding: 4px 10px; border-radius: 999px; background: var(--surface-soft);
+}
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary); }
+.status[data-side="android"] .dot { background: var(--success-primary); }
+.status[data-blocked="true"] .dot { background: var(--error-primary); }
+.desk-bar label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); margin-left: auto; }
+select {
+  font: inherit; font-size: var(--step--1); font-weight: 600; color: var(--text-primary);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+}
+.stage {
+  position: relative; display: flex; align-items: flex-end; justify-content: center;
+  gap: 9%; padding: 36px 6% 28px; background: var(--background); touch-action: pan-y;
+  cursor: none; user-select: none; -webkit-user-select: none;
+}
+.stage[data-pos="left"] { flex-direction: row-reverse; }
+.device { position: relative; display: grid; gap: 8px; justify-items: center; }
+.device .screen {
+  position: relative; width: 100%; border: 6px solid var(--device-frame); border-radius: 10px;
+  background: var(--device-screen); overflow: hidden;
+  transition: box-shadow var(--link-ms) var(--ease);
+}
+.device[data-active="true"] .screen { box-shadow: 0 0 0 3px var(--brand-coral); }
+.monitor { flex: 0 0 58%; }
+.monitor .screen { aspect-ratio: 16 / 10; }
+.monitor .stand { width: 22%; height: 14px; background: var(--device-frame); border-radius: 0 0 6px 6px; margin-top: -8px; }
+.tablet { flex: 0 0 25%; }
+.tablet .screen { aspect-ratio: 10 / 16; border-radius: 14px; border-width: 7px; }
+.device-label { font-size: var(--step--1); font-weight: 600; color: var(--text-secondary); }
+.device[data-active="true"] .device-label { color: var(--text-primary); }
+.screen .chrome { position: absolute; inset: 0; display: grid; align-content: start; gap: 6px; padding: 9%; opacity: .55; }
+.screen .chrome i { display: block; height: 6px; border-radius: 3px; background: var(--border); }
+.screen .chrome i:nth-child(1) { width: 46%; }
+.screen .chrome i:nth-child(2) { width: 78%; }
+.screen .chrome i:nth-child(3) { width: 62%; }
+.edge {
+  position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-coral);
+  opacity: .35; right: 0;
+}
+.stage[data-pos="left"] .monitor .edge { right: auto; left: 0; }
+.tablet .edge { display: none; }
+.cursor {
+  position: absolute; left: 0; top: 0; width: 18px; height: 22px; pointer-events: none; z-index: 2;
+  transform: translate(var(--cx, 40%), var(--cy, 40%));
+  filter: drop-shadow(0 1px 1px var(--shadow));
+}
+.cursor path { fill: var(--text-primary); stroke: var(--surface); stroke-width: 1.5; }
+.route { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
+.route path {
+  fill: none; stroke: var(--brand-coral); stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0;
+}
+.route.go path { animation: draw var(--link-ms) var(--ease) forwards; }
+@keyframes draw { from { stroke-dashoffset: 1; opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+.desk-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  padding: 12px 16px; border-top: 1px solid var(--border); font-size: var(--step--1); color: var(--text-secondary);
+}
+.desk-foot button {
+  font: inherit; font-weight: 600; font-size: var(--step--1); color: var(--text-primary);
+  background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+kbd {
+  font: inherit; font-size: .75rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
+}
+
+/* ---------- Seções ---------- */
+section.band .wrap { padding-block: clamp(56px, 8vw, 96px); display: grid; gap: 40px; }
+section.band + section.band { border-top: 1px solid var(--border); }
+.band-head { display: grid; gap: 12px; max-width: 62ch; }
+.band-head p { color: var(--text-secondary); font-size: var(--step-1); line-height: 1.5; }
+.band-alt { background: var(--surface); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; gap: 10px; align-content: start; padding: 0 24px 0 0; min-width: 0; }
+.steps li::before {
+  content: counter(s); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid var(--brand-coral); color: var(--text-primary); font-weight: 700; font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+.steps li p { color: var(--text-secondary); font-size: .9375rem; }
+@media (max-width: 860px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 32px; } }
+@media (max-width: 480px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* Matriz de transporte */
+.matrix-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+@media (max-width: 860px) { .matrix-grid { grid-template-columns: minmax(0, 1fr); } }
+.table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-m); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .9375rem; min-width: 440px; }
+th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: 0; }
+thead th { font-size: var(--step--1); text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); font-weight: 600; }
+tbody th { font-weight: 600; }
+td[data-hit="true"] { background: var(--brand-coral-soft); box-shadow: inset 0 0 0 2px var(--brand-coral); }
+.cell-blocked { color: var(--error-primary); font-weight: 600; }
+.resolver {
+  display: grid; gap: 16px; padding: 20px; border: 1px solid var(--border);
+  border-radius: var(--radius-m); background: var(--surface);
+}
+.resolver .row { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+.field { display: grid; gap: 6px; font-size: var(--step--1); font-weight: 600; color: var(--text-secondary); }
+.field select { font-size: .9375rem; padding: 8px 10px; min-width: 120px; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: .9375rem; font-weight: 500; color: var(--text-primary); align-self: end; padding-bottom: 8px; }
+.check input { width: 18px; height: 18px; accent-color: var(--brand-coral); }
+.verdict {
+  display: grid; gap: 4px; padding: 14px 16px; border-radius: var(--radius-s); background: var(--surface-soft);
+  border-left: 4px solid var(--success-primary);
+}
+.verdict[data-state="blocked"] { border-left-color: var(--error-primary); }
+.verdict strong { font-size: var(--step-1); }
+.verdict span { color: var(--text-secondary); font-size: .9375rem; }
+
+/* Requisitos */
+.req-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; }
+@media (max-width: 760px) { .req-grid { grid-template-columns: minmax(0, 1fr); } }
+.req { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 18px 0; border-top: 1px solid var(--border); }
+.req dt { font-weight: 600; }
+.req dd { margin: 0; color: var(--text-secondary); }
+.cmd {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius-s);
+  background: var(--structural); color: var(--cold-white); min-width: 0;
+}
+.cmd code {
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: .8125rem;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.cmd button {
+  font: inherit; font-size: var(--step--1); font-weight: 600; flex: none; cursor: pointer;
+  background: var(--brand-coral); color: var(--on-coral); border: 0; border-radius: 6px; padding: 6px 12px;
+}
+.req-note { display: grid; gap: 12px; }
+.req-note p { color: var(--text-secondary); font-size: .9375rem; }
+
+/* Rede local */
+.lan { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .lan { grid-template-columns: minmax(0, 1fr); } }
+.lan div { display: grid; gap: 8px; align-content: start; }
+.lan .big { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.lan p { color: var(--text-secondary); font-size: .9375rem; }
+
+/* Download final */
+.cta-band { background: var(--structural); color: var(--cold-white); }
+.cta-band .wrap { padding-block: clamp(56px, 8vw, 88px); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 28px; }
+.cta-band h2 { color: var(--cold-white); }
+.cta-band p { opacity: .8; margin-top: 8px; }
+.cta-band .btn-secondary { background: transparent; color: var(--cold-white); border-color: var(--border); }
+
+footer .wrap {
+  display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: center;
+  padding-block: 28px; font-size: var(--step--1); color: var(--text-secondary);
+}
+footer .lockup svg { width: 24px; height: 24px; }
+footer .wordmark { font-size: .9375rem; }
+
+@media (max-width: 860px) {
+  .hero .wrap { grid-template-columns: minmax(0, 1fr); }
+  .lede { max-width: 48ch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .route.go path { stroke-dashoffset: 0; opacity: 1; }
+}
+</style>
+
+
+</head>
+<body>
+
+<!-- Símbolo EzAcrossControl (geometria original de Brand/Assets/SVG/symbol-source-palette.svg; cores via tokens) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ez-symbol" viewBox="0 0 2048 2048">
+    <path style="fill:var(--logo-blue)" d="M1974.5,143.643c-51.76-69.143-127.36-117.412-211.56-135.207C1742.2,4.053,1728.18,2.959,1707.82,0H339.235c-21.311,3.068-37.75,4.114-59.298,9.175C197.583,28.164,124.536,75.523,73.589,142.956,40.948,186.735,18.244,237.104,7.058,290.554c-2.9,14.135-4.566,37.174-7.058,47.641v1370.525c3.557,27.02,5.232,43.67,12.292,70.48,20.716,77.33,66.411,145.65,129.977,194.33,44.185,33.81,95.557,57,150.14,67.78,16.486,3.21,31.532,3.94,47.032,6.69h1370.009c13.81-2.81,31.32-3.95,46.97-7.05,53.22-10.62,103.38-33.03,146.8-65.59,67.16-50.88,114.75-123.33,134.79-205.18,6.01-24.8,6.51-41.56,9.99-65.5V340.542c-2.19-15.627-3.46-29.799-6.46-45.442-10.41-54.966-33.36-106.793-67.04-151.457Z"/>
+    <path style="fill:var(--brand-coral)" d="M1466.85,814.452c40.68.972,79.26,15.807,108.53,44.485,28.28,28.009,44.3,66.084,44.56,105.884.38,78.169-69.81,130.919-121.19,181.939l-161.77,160.75c.05-23.71.08-47.5.06-71.2-.02-22-3.05-32.92-15.65-50.98,38.47-39.11,76.74-80.18,114.91-119.79l39.02-40.15c20.15-20.71,47.36-42.037,38-73.953-8.37-28.527-38.72-41.975-64.47-26.317-14.45,8.789-27.9,24.408-39.85,36.45l-46.5,46.77c-64.48,63.75-128.43,128.02-191.84,192.83l-87.99,91.91c-9.25,9.73-18.31,19.83-27.39,29.74-10.41,11.36-20.97,16.41-36.67,16.19-11.93-.07-23.319-4.94-31.612-13.51-4.865-5.01-11.047-15.22-11.605-21.97-1.935-23.42-1.008-49.96-1.023-73.54l-.126-154.66c-25.032,23.76-52.208,52.22-76.698,76.9l-157.105,158.92c-14.843,15.07-29.561,30.26-44.151,45.58-37.583,39.08-58.756,58.08-115.88,61.85-1.284.12-2.11.19-3.406.21-40.04.37-78.528-15.47-106.701-43.93-27.787-27.94-43.052-65.96-42.303-105.36.786-76.03,47.474-107.66,95.368-156.41,63.169-63.48,126.826-126.467,190.966-188.96-.174,37.828-7.804,89.57,15.618,119.38l-133.835,140.39c-11.756,12.37-23.426,24.83-35.008,37.36-5.995,6.5-12.989,13.06-17.91,20.42-5.808,8.69-9.248,19.09-9.092,29.58.19,12.71,6.034,24.25,15.431,32.72,11.106,10,28.945,13.71,42.759,7.05,21.427-10.32,73.255-67.53,92.438-87l218.41-220.48c20.846-21.137,41.823-42.142,62.932-63.015,11.62-11.669,22.336-22.887,34.823-34.085,25.38-23.177,70.13-8.473,74.74,25.586,2.92,21.599,1.67,48.598,1.77,70.744l.47,149.11c19.32-20.92,44.06-44.83,64.37-65.34l143.14-143.519c16.37-16.439,32.42-33.188,48.15-50.238,41.06-43.853,69.03-75.513,133.31-78.341Z"/>
+    <path style="fill:var(--cold-white)" d="M566.385,503.407l21.479-.076,636.776-.106,179.64-.113c22.01-.017,74.44-1.253,93.72,1.748,30.03,4.395,57.82,18.377,79.25,39.859,18.38,18.225,31.33,41.204,37.4,66.366,6.18,25.411,4.02,75.371,4.03,103.5l.11,147.328c-29.22-35.855-55.33-56.962-100.68-70.844l.02-96.995c-.01-22.73,4.3-54.096-12.45-71.42-16.34-16.902-35.79-13.811-57.11-13.81l-56.23.051-210.84.106-425.628-.033-122.971-.11c-20.128-.012-41.371-.715-61.334.723-17.66,1.273-34.776,19.359-36.292,37.038-1.352,15.772-1.019,30.457-1.004,46.262l.121,82.355-.213,283.294c-6.801,7.85-17.595,17.75-25.1,25.44-26.222,26.86-53.44,51.81-78.712,79.67l.012-374.18-.136-106.025c-.03-17.386-1.016-46.293,1.572-62.232,3.857-25.164,14.72-48.734,31.346-68.013,27.994-32.313,61.236-46.649,103.224-49.783Z"/>
+    <path style="fill:var(--cold-white)" d="M1299.62,1210.69c4.82,4.88,5.39,15.2,5.36,21.87-.22,46.51-.41,93-.24,139.51-.4,23.98,1.93,48.46-4.22,71.94-13.08,49.97-55.18,89.51-105.98,99.12-10.09,1.91-21.15,2.65-31.52,2.72l-189.557.02c-37.711.01-87.257,2.22-123.826-3.97-20.458-3.47-49.089-20.54-63.866-35.63-46.15-47.13-39.95-89.92-39.778-149.52l.088-8.2,93.741-95.31c.187,34.97.18,69.94-.022,104.91-.032,16.15-1.211,35.79.558,51.74,4.94,44.56,42.439,39.18,75.35,39.17l77.28.02,119.342.03c19.69,0,39.92.21,59.62-.27,6.18-.49,13.02-3.09,18.11-6.33,22.01-14.05,19.68-33.11,20.07-55.57.47-27.42-1.81-56.49,1.28-83.66.1-.42.2-.84.3-1.25,8.07-9.44,20.76-21.85,29.64-30.98,19.63-19.92,39.05-40.04,58.27-60.36Z"/>
+    <path style="fill:var(--cold-white)" d="M869.024,689.384c7.37-.817,24.109-.495,32.03-.498l58.905.018,189.331-.09c47.24-.091,80.02,5.254,115.95,40.946,44.66,44.371,38.91,92.283,38.66,149.32-27.85,30.065-64.97,65.314-94.78,94.13l-.03-103.571c-.02-31.518,7.31-75.578-33.12-83.202-11.51-2.172-29.78-1.094-41.91-.962l-183.043-.033c-17.762.009-39.233.597-56.675-.069-58.634-2.24-53.68,26.415-53.587,72.574l.117,70.548c-27.07,27.466-62.555,64.207-90.525,89.825-4.967-13.6-3.663-29.788-3.622-44.242l.185-55.121-.543-69.458c-.078-17.465-.842-36.772,2.595-53.819,4.298-20.842,13.506-40.358,26.858-56.928,23.597-29.348,56.136-45.374,93.204-49.368Z"/>
+    <path style="fill:var(--cold-white)" d="M1617.6,1067.82c1.32,1.38,1.16,3.52,1.18,5.29l-.11,130.67c.04,28.18,2.11,85.02-3.79,109.31-5.9,24.53-18.41,46.99-36.15,64.93-46.31,46.68-90.34,41.06-149.23,40.97l-92.29.14c-.35-44.52-.21-66.89,34.31-99.87l76.6.37c6.65.01,14.33-.19,20.88.03,52.08,1.77,48.11-30.96,48.6-70.38l.86-77.22c32.74-31.15,71.18-69.26,99.14-104.24Z"/>
+  </symbol>
+</svg>
+
+<header class="top">
+  <div class="wrap">
+    <a class="lockup" href="#inicio" aria-label="EzAcrossControl, início">
+      <svg aria-hidden="true"><use href="#ez-symbol"/></svg>
+      <span class="wordmark">EzAcrossControl</span>
+    </a>
+    <nav aria-label="Seções">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#conexao">Modo de conexão</a>
+      <a href="#requisitos">Requisitos</a>
+      <a href="#baixar">Baixar</a>
+      <a href="https://github.com/eddesignerez/EzAcrossControl">GitHub</a>
+    </nav>
+    <div class="theme" role="group" aria-label="Tema">
+      <button type="button" id="theme-system" data-theme-choice="system" aria-pressed="true">Sistema</button>
+      <button type="button" id="theme-light" data-theme-choice="light" aria-pressed="false">Claro</button>
+      <button type="button" id="theme-dark" data-theme-choice="dark" aria-pressed="false">Escuro</button>
+    </div>
+  </div>
+</header>
+
+<main id="inicio">
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <span class="test-badge">Versão 1.1.27 · Windows + Android</span>
+        <h1><span>Conecte.</span><span>Controle.</span><span class="accent">Continue.</span></h1>
+        <p class="lede">Use o mouse e o teclado do Windows no seu Android. Leve o ponteiro até a borda do monitor e o controle passa para o outro aparelho.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-windows-x64-setup.exe">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
+            Baixar para Windows <small>.exe</small>
+          </a>
+          <a class="btn btn-secondary" href="https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-android.apk">
+            Baixar APK Android <small>.apk</small>
+          </a>
+        </div>
+        <ul class="facts">
+          <li>Rede local</li>
+          <li>Sem conta</li>
+          <li>Sem nuvem</li>
+          <li>USB ou Wi‑Fi</li>
+        </ul>
+      </div>
+
+      <figure class="desk" aria-labelledby="desk-caption" style="margin:0">
+        <div class="desk-bar">
+          <span class="status" id="status" data-side="windows" aria-live="polite"><span class="dot"></span><span id="status-text">Controle no Windows</span></span>
+          <label for="android-pos">Android à
+            <select id="android-pos">
+              <option value="right" selected>direita</option>
+              <option value="left">esquerda</option>
+            </select>
+          </label>
+        </div>
+        <div class="stage" id="stage" data-pos="right">
+          <div class="device monitor" id="dev-windows" data-active="true">
+            <div class="screen"><div class="chrome"><i></i><i></i><i></i></div><span class="edge" aria-hidden="true"></span></div>
+            <div class="stand"></div>
+            <span class="device-label">Windows</span>
+          </div>
+          <div class="device tablet" id="dev-android" data-active="false">
+            <div class="screen"><div class="chrome"><i></i><i></i><i></i></div></div>
+            <span class="device-label">Android</span>
+          </div>
+          <svg class="route" id="route" aria-hidden="true" preserveAspectRatio="none"><path id="route-path" pathLength="1" d=""/></svg>
+          <svg class="cursor" id="cursor" viewBox="0 0 18 22" aria-hidden="true"><path d="M2 1.5v16.2l4.3-4.1 2.9 6.6 2.9-1.3-2.8-6.4h6.2z"/></svg>
+        </div>
+        <figcaption class="desk-foot" id="desk-caption">
+          <span>Mova o mouse até a borda coral. <kbd>Esc</kbd> devolve o controle.</span>
+          <button type="button" id="simulate">Simular troca de borda</button>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band band-alt" id="como-funciona">
+    <div class="wrap">
+      <div class="band-head">
+        <span class="eyebrow">Primeiro uso</span>
+        <h2>Quatro passos até a primeira troca de tela</h2>
+        <p>O instalador do Windows já traz .NET, ADB e o motor de controle. Você não precisa instalar nenhum SDK.</p>
+      </div>
+      <ol class="steps">
+        <li><h3>Instale no Windows</h3><p>Execute o instalador e abra o EzAcrossControl. Ele pede permissão de administrador para o servidor local e o firewall da rede privada.</p></li>
+        <li><h3>Instale o APK</h3><p>Abra o arquivo no Android e permita a instalação pelo aplicativo usado, se o sistema perguntar.</p></li>
+        <li><h3>Autorize a depuração</h3><p>Ative as opções de desenvolvedor e a depuração USB ou sem fio. Aceite o computador quando o Android perguntar.</p></li>
+        <li><h3>Conecte e escolha a borda</h3><p>Informe o IP do Windows e a mesma porta nos dois apps, toque em Conectar e escolha de que lado o Android fica.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" id="conexao">
+    <div class="wrap">
+      <div class="band-head">
+        <span class="eyebrow">Modo de conexão</span>
+        <h2>Auto, Wi‑Fi ou USB: os dois lados precisam combinar</h2>
+        <p>Escolha o modo no Windows e no Android. Com os dois em Auto, o USB tem prioridade. Modos manuais diferentes bloqueiam a conexão até você alinhar as escolhas.</p>
+      </div>
+      <div class="matrix-grid">
+        <div class="table-scroll">
+          <table id="matrix">
+            <caption class="eyebrow" style="text-align:left;padding:12px 14px 0">Windows × Android</caption>
+            <thead><tr><th scope="col">Windows ↓ / Android →</th><th scope="col">Auto</th><th scope="col">Wi‑Fi</th><th scope="col">USB</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Auto</th><td data-w="auto" data-a="auto">USB, senão Wi‑Fi</td><td data-w="auto" data-a="wifi">Wi‑Fi</td><td data-w="auto" data-a="usb">USB</td></tr>
+              <tr><th scope="row">Wi‑Fi</th><td data-w="wifi" data-a="auto">Wi‑Fi</td><td data-w="wifi" data-a="wifi">Wi‑Fi</td><td data-w="wifi" data-a="usb" class="cell-blocked">Bloqueado</td></tr>
+              <tr><th scope="row">USB</th><td data-w="usb" data-a="auto">USB</td><td data-w="usb" data-a="wifi" class="cell-blocked">Bloqueado</td><td data-w="usb" data-a="usb">USB</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <form class="resolver" id="resolver" aria-labelledby="resolver-title">
+          <h3 id="resolver-title">Teste a combinação</h3>
+          <div class="row">
+            <label class="field" for="mode-windows">Windows
+              <select id="mode-windows"><option value="auto" selected>Auto</option><option value="wifi">Wi‑Fi</option><option value="usb">USB</option></select>
+            </label>
+            <label class="field" for="mode-android">Android
+              <select id="mode-android"><option value="auto" selected>Auto</option><option value="wifi">Wi‑Fi</option><option value="usb">USB</option></select>
+            </label>
+            <label class="check" for="usb-ready"><input type="checkbox" id="usb-ready" checked> Cabo USB autorizado</label>
+          </div>
+          <div class="verdict" id="verdict" data-state="ok" aria-live="polite">
+            <strong id="verdict-title">Conecta por USB</strong>
+            <span id="verdict-detail">Os dois estão em Auto e o USB está disponível.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band-alt" id="requisitos">
+    <div class="wrap">
+      <div class="band-head">
+        <span class="eyebrow">Requisitos</span>
+        <h2>O que você precisa antes de conectar</h2>
+      </div>
+      <div class="req-grid">
+        <dl style="margin:0">
+          <div class="req"><dt>Windows</dt><dd>Windows 10 ou 11, 64 bits.</dd></div>
+          <div class="req"><dt>Android</dt><dd>Android 7 ou posterior. O controle nativo depende do suporte UHID do aparelho.</dd></div>
+          <div class="req"><dt>Rede</dt><dd>Windows e Android na mesma rede local, também quando o motor usa USB.</dd></div>
+          <div class="req"><dt>Depuração</dt><dd>USB autorizada, ou depuração sem fio pareada. Sem fio pelo menu do Android pede Android 11 ou posterior.</dd></div>
+        </dl>
+        <div class="req-note">
+          <h3>Parear por Wi‑Fi</h3>
+          <p>No Android, abra Depuração sem fio e escolha parear com código. No computador, rode o ADB incluído no app e digite o código exibido. A porta de pareamento é diferente da porta de conexão.</p>
+          <div class="cmd">
+            <code id="pair-cmd">&amp; "$env:ProgramFiles\EZ Across Control\scrcpy\adb.exe" pair &lt;IP-do-Android&gt;:&lt;porta-de-pareamento&gt;</code>
+            <button type="button" id="copy-pair">Copiar</button>
+          </div>
+          <p>Se a descoberta automática não achar o aparelho, use <code>adb connect &lt;IP-do-Android&gt;:&lt;porta-de-conexão&gt;</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="rede">
+    <div class="wrap">
+      <div class="band-head">
+        <span class="eyebrow">Rede local</span>
+        <h2>Os dados ficam entre os seus dois aparelhos</h2>
+      </div>
+      <div class="lan">
+        <div><span class="big">LAN</span><p>Windows e Android conversam direto pela rede local. Não há servidor intermediário nem serviço de nuvem.</p></div>
+        <div><span class="big tnum">8765</span><p>Porta padrão. Você pode trocá-la, desde que use a mesma porta nos dois apps.</p></div>
+        <div><span class="big">0 contas</span><p>Não há cadastro nem login. Instale, autorize a depuração e conecte.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band" id="baixar">
+    <div class="wrap">
+      <div>
+        <h2>Baixe a versão 1.1.27</h2>
+        <p>Instalador do Windows e APK do Android, publicados no GitHub com verificações de integridade.</p>
+      </div>
+      <div class="ctas">
+        <a class="btn btn-primary" href="https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-windows-x64-setup.exe">Windows <small>.exe</small></a>
+        <a class="btn btn-secondary" href="https://github.com/eddesignerez/EzAcrossControl/releases/download/v1.1.27/EZAcrossControl-1.1.27-android.apk">Android <small>.apk</small></a>
+        <a class="btn btn-secondary" href="https://github.com/eddesignerez/EzAcrossControl/releases">Todas as versões</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span class="lockup"><svg aria-hidden="true"><use href="#ez-symbol"/></svg><span class="wordmark">EzAcrossControl</span></span>
+    <span>by ElementZero · <a href="https://github.com/eddesignerez/EzAcrossControl">Código no GitHub</a> · <a href="https://github.com/eddesignerez/EzAcrossControl#readme">Outros idiomas</a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // ---------- Tema (Sistema / Claro / Escuro) ----------
+  const root = document.documentElement;
+  const themeButtons = document.querySelectorAll("[data-theme-choice]");
+  function applyTheme(choice) {
+    if (choice === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", choice);
+    themeButtons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeChoice === choice)));
+    try { localStorage.setItem("eac-theme", choice); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem("eac-theme"); } catch (e) {}
+  if (savedTheme === "light" || savedTheme === "dark") applyTheme(savedTheme);
+  themeButtons.forEach(b => b.addEventListener("click", () => applyTheme(b.dataset.themeChoice)));
+
+  // ---------- Matriz de transporte ----------
+  const LABEL = { auto: "Auto", wifi: "Wi‑Fi", usb: "USB" };
+  function resolveTransport(w, a, usbReady) {
+    if (w !== "auto" && a !== "auto" && w !== a) {
+      return { ok: false, title: "Conexão bloqueada", detail: `Windows em ${LABEL[w]} e Android em ${LABEL[a]}. Alinhe as escolhas ou selecione Auto.` };
+    }
+    const manual = w !== "auto" ? w : a !== "auto" ? a : null;
+    if (manual === "usb" && !usbReady) {
+      return { ok: false, title: "USB indisponível", detail: "O modo manual USB não usa Wi‑Fi como alternativa. Conecte e autorize o cabo." };
+    }
+    if (manual) {
+      const who = w !== "auto" && a !== "auto" ? "Os dois escolheram" : "Um lado está em Auto e segue o outro, que escolheu";
+      return { ok: true, transport: manual, title: `Conecta por ${LABEL[manual]}`, detail: `${who} ${LABEL[manual]}.` };
+    }
+    return usbReady
+      ? { ok: true, transport: "usb", title: "Conecta por USB", detail: "Os dois estão em Auto e o USB está disponível." }
+      : { ok: true, transport: "wifi", title: "Conecta por Wi‑Fi", detail: "Os dois estão em Auto e o USB não está disponível." };
+  }
+  const modeW = document.getElementById("mode-windows");
+  const modeA = document.getElementById("mode-android");
+  const usbReady = document.getElementById("usb-ready");
+  const verdict = document.getElementById("verdict");
+  let current = resolveTransport("auto", "auto", true);
+  function updateResolver() {
+    current = resolveTransport(modeW.value, modeA.value, usbReady.checked);
+    verdict.dataset.state = current.ok ? "ok" : "blocked";
+    document.getElementById("verdict-title").textContent = current.title;
+    document.getElementById("verdict-detail").textContent = current.detail;
+    document.querySelectorAll("#matrix td").forEach(td => {
+      td.dataset.hit = String(td.dataset.w === modeW.value && td.dataset.a === modeA.value);
+    });
+    renderStatus();
+  }
+  [modeW, modeA, usbReady].forEach(el => el.addEventListener("change", updateResolver));
+  document.getElementById("resolver").addEventListener("submit", e => e.preventDefault());
+
+  // ---------- Mesa interativa ----------
+  const stage = document.getElementById("stage");
+  const devW = document.getElementById("dev-windows");
+  const devA = document.getElementById("dev-android");
+  const cursor = document.getElementById("cursor");
+  const status = document.getElementById("status");
+  const statusText = document.getElementById("status-text");
+  const route = document.getElementById("route");
+  const routePath = document.getElementById("route-path");
+  const posSelect = document.getElementById("android-pos");
+  let side = "windows";
+  let pos = "right";
+  let last = null;
+
+  function screenRect(dev) {
+    const s = dev.querySelector(".screen").getBoundingClientRect();
+    const st = stage.getBoundingClientRect();
+    return { left: s.left - st.left, top: s.top - st.top, right: s.right - st.left, bottom: s.bottom - st.top, width: s.width, height: s.height };
+  }
+  function placeCursor(x, y) {
+    cursor.style.setProperty("--cx", `${x}px`);
+    cursor.style.setProperty("--cy", `${y}px`);
+  }
+  function renderStatus() {
+    status.dataset.side = side;
+    status.dataset.blocked = String(!current.ok);
+    if (!current.ok) statusText.textContent = current.title;
+    else if (side === "android") statusText.textContent = `Controle no Android · ${LABEL[current.transport]}`;
+    else statusText.textContent = "Controle no Windows";
+  }
+  function drawRoute(from, to) {
+    const st = stage.getBoundingClientRect();
+    route.setAttribute("viewBox", `0 0 ${st.width} ${st.height}`);
+    const midX = (from.x + to.x) / 2;
+    const lift = Math.min(from.y, to.y) - 28;
+    routePath.setAttribute("d", `M${from.x},${from.y} Q${midX},${lift} ${to.x},${to.y}`);
+    route.classList.remove("go");
+    void route.getBoundingClientRect();
+    route.classList.add("go");
+  }
+  function setSide(next, entry) {
+    if (next === side) return;
+    if (next === "android" && !current.ok) return; // sem transporte válido, o controle não sai do Windows
+    const from = last ? { ...last } : null;
+    side = next;
+    devW.dataset.active = String(side === "windows");
+    devA.dataset.active = String(side === "android");
+    renderStatus();
+    if (from && entry) drawRoute(from, entry);
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function handleMove(x, y) {
+    const w = screenRect(devW);
+    const a = screenRect(devA);
+    const toward = pos === "right" ? 1 : -1;
+    if (side === "windows") {
+      const edgeX = toward > 0 ? w.right - 4 : w.left + 4;
+      if (current.ok && (toward > 0 ? x >= edgeX : x <= edgeX) && y >= w.top && y <= w.bottom) {
+        const ratio = (y - w.top) / w.height;
+        const entry = { x: toward > 0 ? a.left + 6 : a.right - 18, y: a.top + ratio * a.height };
+        setSide("android", entry);
+        last = entry; placeCursor(entry.x, entry.y);
+        return;
+      }
+      last = { x: clamp(x, w.left + 2, w.right - 18), y: clamp(y, w.top + 2, w.bottom - 22) };
+    } else {
+      const backEdge = toward > 0 ? w.right : w.left;
+      if (toward > 0 ? x < backEdge - 8 : x > backEdge + 8) {
+        const ratio = clamp((y - a.top) / a.height, 0, 1);
+        const entry = { x: toward > 0 ? w.right - 22 : w.left + 6, y: w.top + ratio * w.height };
+        setSide("windows", entry);
+        last = entry; placeCursor(entry.x, entry.y);
+        return;
+      }
+      last = { x: clamp(x, a.left + 2, a.right - 18), y: clamp(y, a.top + 2, a.bottom - 22) };
+    }
+    placeCursor(last.x, last.y);
+  }
+  stage.addEventListener("pointermove", e => {
+    const st = stage.getBoundingClientRect();
+    handleMove(e.clientX - st.left, e.clientY - st.top);
+  });
+  function resetCursor() {
+    const w = screenRect(devW);
+    side = "android"; // força a atualização visual
+    setSide("windows", null);
+    last = { x: w.left + w.width * 0.42, y: w.top + w.height * 0.45 };
+    placeCursor(last.x, last.y);
+  }
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && side === "android") resetCursor();
+  });
+  document.getElementById("simulate").addEventListener("click", () => {
+    const w = screenRect(devW);
+    const a = screenRect(devA);
+    if (side === "windows") {
+      if (!current.ok) { renderStatus(); return; }
+      const toward = pos === "right" ? 1 : -1;
+      last = { x: toward > 0 ? w.right - 18 : w.left + 2, y: w.top + w.height * 0.5 };
+      const entry = { x: toward > 0 ? a.left + 6 : a.right - 18, y: a.top + a.height * 0.5 };
+      setSide("android", entry);
+      last = entry; placeCursor(entry.x, entry.y);
+    } else {
+      resetCursor();
+    }
+  });
+  posSelect.addEventListener("change", () => {
+    pos = posSelect.value;
+    stage.dataset.pos = pos;
+    resetCursor();
+  });
+  window.addEventListener("resize", () => { if (side === "windows") resetCursor(); });
+
+  // ---------- Copiar comando ----------
+  const copyBtn = document.getElementById("copy-pair");
+  copyBtn.addEventListener("click", () => {
+    const text = document.getElementById("pair-cmd").textContent;
+    const done = () => { copyBtn.textContent = "Copiado"; setTimeout(() => copyBtn.textContent = "Copiar", 1600); };
+    const fallback = () => {
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById("pair-cmd"));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      copyBtn.textContent = "Selecionado";
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+
+  updateResolver();
+  requestAnimationFrame(resetCursor);
+})();
+</script>
+
+</body></html>
